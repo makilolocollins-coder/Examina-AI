@@ -1,4 +1,5 @@
 # ============================================================
+# ============================================================
 # EXAMINA AI
 # DATABASE CONNECTION
 # ============================================================
@@ -9,6 +10,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from database.models import Base
+
+# Import models so SQLAlchemy registers every table
+from database import models
 
 
 # ============================================================
@@ -71,7 +75,7 @@ def create_database():
     """
     Create all Examinа AI database tables.
 
-    The tables are defined inside database/models.py.
+    Tables are defined in database/models.py.
     """
 
     Base.metadata.create_all(
@@ -85,9 +89,10 @@ def create_database():
 
 def get_db():
     """
-    Create and return a database session.
+    Create a database session.
 
-    The session is automatically closed after use.
+    The session is automatically closed
+    after use.
     """
 
     db = SessionLocal()
@@ -109,7 +114,7 @@ if __name__ == "__main__":
     print("EXAMINA AI DATABASE")
     print("=" * 70)
 
-    print(f"Database location:")
+    print("Database location:")
     print(DATABASE_PATH)
 
     create_database()
