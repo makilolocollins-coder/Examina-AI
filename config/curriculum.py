@@ -4,22 +4,42 @@
 # ============================================================
 
 """
-This file defines the academic structure used by Examina AI.
+Examina AI Nigerian Curriculum
 
-Structure:
+Academic structure:
 
 Primary 1 - 3
 Primary 4 - 6
 JSS 1 - 3
 SS 1 - 3
-    ├── Science
-    ├── Humanities
-    └── Business
 
-Important:
-A student does NOT automatically receive every subject.
-The school will select the subjects actually registered
-for that student.
+Senior Secondary fields:
+
+    Science
+    Humanities
+    Business
+
+IMPORTANT
+---------
+This file contains the SUBJECT CATALOGUE.
+
+It does NOT automatically assign every subject
+to a student.
+
+The actual subjects taken by a student are stored
+in the StudentSubject database table.
+
+Therefore:
+
+    curriculum.py
+          ↓
+    Available subjects
+          ↓
+    Teacher selects actual subjects
+          ↓
+    StudentSubject
+          ↓
+    Results
 """
 
 
@@ -98,7 +118,8 @@ SS_CORE_SUBJECTS = [
 
 
 # ============================================================
-# SCIENCE FIELD
+# SENIOR SECONDARY
+# SCIENCE
 # ============================================================
 
 SS_SCIENCE_SUBJECTS = [
@@ -116,7 +137,8 @@ SS_SCIENCE_SUBJECTS = [
 
 
 # ============================================================
-# HUMANITIES FIELD
+# SENIOR SECONDARY
+# HUMANITIES
 # ============================================================
 
 SS_HUMANITIES_SUBJECTS = [
@@ -136,7 +158,8 @@ SS_HUMANITIES_SUBJECTS = [
 
 
 # ============================================================
-# BUSINESS FIELD
+# SENIOR SECONDARY
+# BUSINESS
 # ============================================================
 
 SS_BUSINESS_SUBJECTS = [
@@ -148,6 +171,7 @@ SS_BUSINESS_SUBJECTS = [
 
 
 # ============================================================
+# SENIOR SECONDARY
 # TRADE SUBJECTS
 # ============================================================
 
@@ -177,6 +201,7 @@ SS_FIELDS = {
 # ============================================================
 
 EDUCATION_LEVELS = {
+
     "Primary": [
         "Primary 1",
         "Primary 2",
@@ -201,108 +226,325 @@ EDUCATION_LEVELS = {
 
 
 # ============================================================
+# SENIOR SECONDARY FIELDS
+# ============================================================
+
+SENIOR_SECONDARY_FIELDS = [
+    "Science",
+    "Humanities",
+    "Business",
+]
+
+
+# ============================================================
 # GET SUBJECTS FOR A CLASS
 # ============================================================
 
 def get_subjects_for_class(
-    class_name,
-    field=None,
-):
+    class_name: str,
+    field: str | None = None,
+) -> list[str]:
     """
-    Return the subjects available for a particular class.
+    Return all subjects available for a class.
 
-    Parameters
-    ----------
-    class_name : str
-        Example:
-        Primary 2
-        Primary 5
-        JSS 1
-        SS 2
+    IMPORTANT:
+    This function returns AVAILABLE subjects only.
 
-    field : str, optional
-        Required for Senior Secondary School.
+    It does not mean the student automatically takes
+    every subject returned.
 
-        Valid options:
-        Science
-        Humanities
-        Business
-
-    Returns
-    -------
-    list
-        List of subjects available for the class.
+    Actual student subject registration is stored in
+    StudentSubject.
     """
 
-    # -------------------------
+    # --------------------------------------------------------
     # PRIMARY 1 - 3
-    # -------------------------
+    # --------------------------------------------------------
 
-    if class_name in [
+    if class_name in {
         "Primary 1",
         "Primary 2",
         "Primary 3",
-    ]:
+    }:
+
         return PRIMARY_1_3_SUBJECTS.copy()
 
 
-    # -------------------------
+    # --------------------------------------------------------
     # PRIMARY 4 - 6
-    # -------------------------
+    # --------------------------------------------------------
 
-    if class_name in [
+    if class_name in {
         "Primary 4",
         "Primary 5",
         "Primary 6",
-    ]:
+    }:
+
         return PRIMARY_4_6_SUBJECTS.copy()
 
 
-    # -------------------------
+    # --------------------------------------------------------
     # JSS 1 - 3
-    # -------------------------
+    # --------------------------------------------------------
 
-    if class_name in [
+    if class_name in {
         "JSS 1",
         "JSS 2",
         "JSS 3",
-    ]:
+    }:
+
         return JSS_1_3_SUBJECTS.copy()
 
 
-    # -------------------------
+    # --------------------------------------------------------
     # SS 1 - 3
-    # -------------------------
+    # --------------------------------------------------------
 
-    if class_name in [
+    if class_name in {
         "SS 1",
         "SS 2",
         "SS 3",
-    ]:
+    }:
 
         if field is None:
+
             raise ValueError(
                 "Senior Secondary students must have "
                 "a field: Science, Humanities, or Business."
             )
 
         if field not in SS_FIELDS:
+
             raise ValueError(
                 f"Invalid SS field: {field}. "
-                f"Choose from: {list(SS_FIELDS.keys())}"
+                f"Choose from: {SENIOR_SECONDARY_FIELDS}"
             )
 
         return (
-            SS_CORE_SUBJECTS
-            + SS_FIELDS[field]
-            + SS_TRADE_SUBJECTS
+            SS_CORE_SUBJECTS.copy()
+            + SS_FIELDS[field].copy()
+            + SS_TRADE_SUBJECTS.copy()
         )
 
 
-    # -------------------------
+    # --------------------------------------------------------
     # INVALID CLASS
-    # -------------------------
+    # --------------------------------------------------------
 
     raise ValueError(
         f"Unknown class: {class_name}"
     )
+
+
+# ============================================================
+# VALIDATE CLASS
+# ============================================================
+
+def is_valid_class(
+    class_name: str,
+) -> bool:
+    """
+    Check whether a class exists in the curriculum.
+    """
+
+    all_classes = []
+
+    for classes in EDUCATION_LEVELS.values():
+
+        all_classes.extend(classes)
+
+    return class_name in all_classes
+
+
+# ============================================================
+# VALIDATE SENIOR SECONDARY FIELD
+# ============================================================
+
+def is_valid_field(
+    field: str | None,
+) -> bool:
+    """
+    Check whether an SS field is valid.
+    """
+
+    return field in SENIOR_SECONDARY_FIELDS
+
+
+# ============================================================
+# CHECK SUBJECT AVAILABILITY
+# ============================================================
+
+def is_valid_subject_for_class(
+    class_name: str,
+    subject_name: str,
+    field: str | None = None,
+) -> bool:
+    """
+    Check whether a subject is available for
+    a particular class and field.
+    """
+
+    subjects = get_subjects_for_class(
+        class_name=class_name,
+        field=field,
+    )
+
+    return subject_name in subjects
+
+
+# ============================================================
+# GET SUBJECT CATEGORY
+# ============================================================
+
+def get_subject_category(
+    class_name: str,
+    subject_name: str,
+    field: str | None = None,
+) -> str:
+    """
+    Determine the category of a subject.
+
+    Returns:
+
+        Core
+        Science
+        Humanities
+        Business
+        Trade
+        Primary
+        JSS
+        Unknown
+    """
+
+    # --------------------------------------------------------
+    # Validate subject
+    # --------------------------------------------------------
+
+    if not is_valid_subject_for_class(
+        class_name=class_name,
+        subject_name=subject_name,
+        field=field,
+    ):
+
+        return "Unknown"
+
+
+    # --------------------------------------------------------
+    # Senior Secondary
+    # --------------------------------------------------------
+
+    if class_name in {
+        "SS 1",
+        "SS 2",
+        "SS 3",
+    }:
+
+        if subject_name in SS_CORE_SUBJECTS:
+
+            return "Core"
+
+        if subject_name in SS_SCIENCE_SUBJECTS:
+
+            return "Science"
+
+        if subject_name in SS_HUMANITIES_SUBJECTS:
+
+            return "Humanities"
+
+        if subject_name in SS_BUSINESS_SUBJECTS:
+
+            return "Business"
+
+        if subject_name in SS_TRADE_SUBJECTS:
+
+            return "Trade"
+
+
+    # --------------------------------------------------------
+    # JSS
+    # --------------------------------------------------------
+
+    if class_name in {
+        "JSS 1",
+        "JSS 2",
+        "JSS 3",
+    }:
+
+        return "JSS"
+
+
+    # --------------------------------------------------------
+    # Primary
+    # --------------------------------------------------------
+
+    if class_name in {
+        "Primary 1",
+        "Primary 2",
+        "Primary 3",
+        "Primary 4",
+        "Primary 5",
+        "Primary 6",
+    }:
+
+        return "Primary"
+
+
+    return "Unknown"
+
+
+# ============================================================
+# GET ALL CLASSES
+# ============================================================
+
+def get_all_classes() -> list[str]:
+    """
+    Return every class available in Examina AI.
+    """
+
+    classes = []
+
+    for level_classes in EDUCATION_LEVELS.values():
+
+        classes.extend(level_classes)
+
+    return classes
+
+
+# ============================================================
+# GET ALL SUBJECTS
+# ============================================================
+
+def get_all_subjects() -> list[str]:
+    """
+    Return every unique subject in the curriculum.
+    """
+
+    subjects = set()
+
+    subjects.update(PRIMARY_1_3_SUBJECTS)
+    subjects.update(PRIMARY_4_6_SUBJECTS)
+    subjects.update(JSS_1_3_SUBJECTS)
+    subjects.update(SS_CORE_SUBJECTS)
+    subjects.update(SS_SCIENCE_SUBJECTS)
+    subjects.update(SS_HUMANITIES_SUBJECTS)
+    subjects.update(SS_BUSINESS_SUBJECTS)
+    subjects.update(SS_TRADE_SUBJECTS)
+
+    return sorted(subjects)
+
+
+# ============================================================
+# CURRICULUM SUMMARY
+# ============================================================
+
+def get_curriculum_summary() -> dict:
+    """
+    Return a summary of the Examina AI curriculum.
+    """
+
+    return {
+        "education_levels": EDUCATION_LEVELS,
+        "senior_secondary_fields": SENIOR_SECONDARY_FIELDS,
+        "total_classes": len(get_all_classes()),
+        "total_subjects": len(get_all_subjects()),
+    }
