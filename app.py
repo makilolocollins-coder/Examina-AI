@@ -27,3 +27,26 @@ st.write(
     "question solving, tutors, courses, and school management "
     "into one platform."
 )
+
+# ============================================================
+# SIDEBAR NAVIGATION
+# ============================================================
+
+st.sidebar.title("🎓 Examina AI")
+
+st.sidebar.write("Navigate")
+
+page = st.sidebar.radio(
+    "Select a section",
+    [
+        "🏠 Home",
+        "📝 Exam Scanner",
+        "🤖 AI Teacher",
+        "🔍 Question Solver",
+        "📚 Courses",
+        "👨‍🏫 Tutors",
+        "🏫 Schools",
+        "📊 Results",
+        "👤 Profile"
+    ]
+)
