@@ -418,17 +418,19 @@ def build_student_report(
     # ========================================================
     # GET TERM REPORT
     # ========================================================
-
-    term_report = db.scalar(
-        select(StudentTermReport).where(
-            StudentTermReport.student_id
-            == student_id,
-
-            StudentTermReport.academic_term_id
-            == academic_term_id,
-        )
+    report = (
+    db.query(StudentTermReport)
+    .filter(
+        StudentTermReport.student_id == student_id,
+        StudentTermReport.academic_term_id == academic_term_id,
+    )
+    .first()
     )
 
+    if report is None:
+    raise ValueError(
+        "Student term report not found."
+    )      
     # ========================================================
     # GET RESULTS
     # ========================================================
