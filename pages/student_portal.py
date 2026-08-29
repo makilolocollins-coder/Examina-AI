@@ -687,6 +687,17 @@ def show_student_portal():
             st.caption(
                 f"Approved at: {report.approved_at}"
             )
+        
+        if not report["principal_approved"]:
+            st.warning(
+                "Your result has not yet been approved by the Principal."
+            )
+            st.info(
+                "You can view the result after it is released, "
+                "but downloading is disabled until approval."
+            )
+        else:
+        # Your existing download button goes here
 
         # ====================================================
         # DOWNLOAD
