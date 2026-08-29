@@ -121,18 +121,6 @@ class School(Base):
 # ============================================================
 # ACADEMIC SESSION
 # ============================================================
-#
-# Example:
-#
-# 2026/2027
-#
-# Every academic session contains:
-#
-# 1st Term
-# 2nd Term
-# 3rd Term
-#
-# ============================================================
 
 class AcademicSession(Base):
 
@@ -199,22 +187,16 @@ class AcademicTerm(Base):
 
     # --------------------------------------------------------
     # TERM NUMBER
-    # --------------------------------------------------------
     #
     # 1 = 1st Term
     # 2 = 2nd Term
     # 3 = 3rd Term
-    #
     # --------------------------------------------------------
 
     term_number: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
     )
-
-    # --------------------------------------------------------
-    # TERM NAME
-    # --------------------------------------------------------
 
     name: Mapped[str] = mapped_column(
         String(20),
@@ -329,8 +311,7 @@ class SchoolClass(Base):
     )
 
     # --------------------------------------------------------
-    # PREVENT DUPLICATE CLASS NAMES
-    # WITHIN THE SAME SCHOOL
+    # PREVENT DUPLICATE CLASS
     # --------------------------------------------------------
 
     __table_args__ = (
@@ -389,14 +370,12 @@ class Student(Base):
 
     # --------------------------------------------------------
     # CLASS
-    # --------------------------------------------------------
     #
     # class_id is the single source of truth.
     #
-    # Class name is accessed through:
+    # Class name is accessed with:
     #
     # student.school_class.name
-    #
     # --------------------------------------------------------
 
     class_id: Mapped[int] = mapped_column(
@@ -415,16 +394,6 @@ class Student(Base):
 
     # --------------------------------------------------------
     # FIELD / STREAM
-    # --------------------------------------------------------
-    #
-    # Examples:
-    #
-    # Science
-    # Humanities
-    # Business
-    #
-    # Usually NULL for Primary and JSS.
-    #
     # --------------------------------------------------------
 
     field: Mapped[str | None] = mapped_column(
@@ -478,7 +447,7 @@ class Student(Base):
 
 
 # ============================================================
-# TEACHER
+# TEACHER / PRINCIPAL
 # ============================================================
 
 class Teacher(Base):
@@ -540,6 +509,7 @@ class Teacher(Base):
     approved_reports = relationship(
         "StudentTermReport",
         back_populates="approving_principal",
+        foreign_keys="StudentTermReport.principal_id",
     )
 
 
@@ -592,18 +562,6 @@ class Subject(Base):
 # ============================================================
 # STUDENT SUBJECT
 # ============================================================
-#
-# Defines the subjects a student takes during a particular
-# academic term.
-#
-# Example:
-#
-# John
-# Mathematics
-# 2026/2027
-# 1st Term
-#
-# ============================================================
 
 class StudentSubject(Base):
 
@@ -650,7 +608,7 @@ class StudentSubject(Base):
     )
 
     # --------------------------------------------------------
-    # PREVENT DUPLICATES
+    # PREVENT DUPLICATE SUBJECT REGISTRATION
     # --------------------------------------------------------
 
     __table_args__ = (
@@ -666,15 +624,6 @@ class StudentSubject(Base):
 
 # ============================================================
 # RESULT
-# ============================================================
-#
-# Contains the academic score for ONE subject.
-#
-# Principal approval is NOT stored here.
-#
-# Principal approval belongs to StudentTermReport because
-# the principal approves the student's COMPLETE report.
-#
 # ============================================================
 
 class Result(Base):
@@ -768,7 +717,7 @@ class Result(Base):
     )
 
     # --------------------------------------------------------
-    # PREVENT DUPLICATE RESULTS
+    # PREVENT DUPLICATE RESULT
     # --------------------------------------------------------
 
     __table_args__ = (
@@ -784,23 +733,6 @@ class Result(Base):
 
 # ============================================================
 # STUDENT TERM REPORT
-# ============================================================
-#
-# Represents ONE COMPLETE REPORT for ONE STUDENT
-# in ONE ACADEMIC TERM.
-#
-# Example:
-#
-# John Doe
-# 2026/2027
-# 3rd Term
-#
-# Teacher's remark
-# Principal's remark
-# Principal approval
-# Year average
-# PASS / FAIL
-#
 # ============================================================
 
 class StudentTermReport(Base):
@@ -853,7 +785,7 @@ class StudentTermReport(Base):
     # YEAR AVERAGE
     # ========================================================
     #
-    # Only populated for 3rd Term.
+    # Only calculated for 3rd Term.
     #
     # Formula:
     #
@@ -876,9 +808,6 @@ class StudentTermReport(Base):
     #
     # PASS
     # FAIL
-    #
-    # This is mainly used for 3rd Term.
-    #
     # ========================================================
 
     final_decision: Mapped[str | None] = mapped_column(
@@ -897,7 +826,7 @@ class StudentTermReport(Base):
     )
 
     # ========================================================
-    # PRINCIPAL WHO APPROVED
+    # PRINCIPAL ID
     # ========================================================
 
     principal_id: Mapped[int | None] = mapped_column(
@@ -915,11 +844,11 @@ class StudentTermReport(Base):
     )
 
     # ========================================================
-    # REPORT PUBLISHED
+    # PUBLISHED
     # ========================================================
     #
-    # Even after calculation, the report is not available
-    # for student download until the principal approves it.
+    # A student cannot download/view the official report
+    # until the principal has approved and published it.
     #
     # ========================================================
 
@@ -946,6 +875,7 @@ class StudentTermReport(Base):
     approving_principal = relationship(
         "Teacher",
         back_populates="approved_reports",
+        foreign_keys=[principal_id],
     )
 
     # ========================================================
