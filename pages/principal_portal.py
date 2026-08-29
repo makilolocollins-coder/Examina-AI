@@ -469,6 +469,47 @@ def show_principal_portal():
             format_func=lambda item: item.name,
         )
 
+
+        students = (
+           db.query(Student)
+           .filter(
+           Student.school_id == principal.school_id,
+           Student.class_id == selected_class_id,
+           Student.active == True,
+        )
+           .order_by(
+           Student.last_name,
+           Student.first_name,
+        )
+           .all()
+        )
+
+        for student in students:
+            report = (
+            db.query(StudentTermReport)
+            .filter(
+            StudentTermReport.student_id == student.id,
+            StudentTermReport.academic_term_id == selected_term_id,
+        )
+           .first()
+        )
+            
+         if report and not report.principal_approved:
+
+           if st.button(
+               f"Approve {student.first_name} {student.last_name}",
+               key=f"approve_{student.id}",
+        ):
+
+               report.principal_approved = True
+               report.approved_at = datetime.utcnow()
+
+               db.commit()
+  
+               st.success(
+               f"{student.first_name} {student.last_name}'s result approved."
+        )   
+            
         # ====================================================
         # STUDENTS
         # ====================================================
