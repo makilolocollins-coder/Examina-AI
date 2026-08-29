@@ -632,6 +632,32 @@ class Result(Base):
         nullable=False,
     )
 
+
+    # ============================================================
+# PRINCIPAL APPROVAL
+# ============================================================
+
+principal_approved: Mapped[bool] = mapped_column(
+    Boolean,
+    default=False,
+    nullable=False,
+)
+
+principal_approved_at: Mapped[datetime | None] = mapped_column(
+    DateTime,
+    nullable=True,
+)
+
+principal_id: Mapped[int | None] = mapped_column(
+    ForeignKey("teachers.id"),
+    nullable=True,
+)
+
+principal_remark: Mapped[str | None] = mapped_column(
+    Text,
+    nullable=True,
+)
+    
     # --------------------------------------------------------
     # SCORES
     # --------------------------------------------------------
