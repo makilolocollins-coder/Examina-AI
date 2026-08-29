@@ -7,20 +7,6 @@ import streamlit as st
 
 
 # ============================================================
-# DATABASE
-# ============================================================
-
-from database.database import create_database
-
-
-# ============================================================
-# INITIALIZE DATABASE
-# ============================================================
-
-create_database()
-
-
-# ============================================================
 # PAGE CONFIGURATION
 # ============================================================
 
@@ -33,33 +19,46 @@ st.set_page_config(
 
 
 # ============================================================
+# DATABASE INITIALIZATION
+# ============================================================
+
+try:
+    from database.database import create_database
+
+    create_database()
+
+except Exception as error:
+    st.error("Database initialization failed.")
+    st.exception(error)
+    st.stop()
+
+
+# ============================================================
 # APPLICATION HEADER
 # ============================================================
 
 st.title("🎓 Examina AI")
 
-st.subheader(
+st.caption(
     "AI-Powered Education Platform"
-)
-
-st.write(
-    "Examina AI brings examination tools, AI learning, "
-    "question solving, tutors, courses, and school management "
-    "into one platform."
 )
 
 
 # ============================================================
-# SIDEBAR NAVIGATION
+# SIDEBAR
 # ============================================================
 
 st.sidebar.title("🎓 Examina AI")
 
-st.sidebar.write("Navigate")
+st.sidebar.caption(
+    "AI-Powered Education Platform"
+)
+
+st.sidebar.divider()
 
 
 page = st.sidebar.radio(
-    "Select a section",
+    "Navigate",
     [
         "🏠 Home",
         "📝 Exam Scanner",
@@ -77,6 +76,66 @@ page = st.sidebar.radio(
 )
 
 
+st.sidebar.divider()
+
+st.sidebar.caption(
+    "Examina AI • Education Technology"
+)
+
+
+# ============================================================
+# PAGE LOADER
+# ============================================================
+
+def load_page(module_name, function_name="show"):
+    """
+    Safely import and execute a page.
+
+    This prevents one broken page from making it appear
+    that the whole application is only showing Home.
+    """
+
+    try:
+
+        module = __import__(
+            module_name,
+            fromlist=[function_name],
+        )
+
+        page_function = getattr(
+            module,
+            function_name,
+        )
+
+        page_function()
+
+    except ModuleNotFoundError as error:
+
+        st.error(
+            f"Page module could not be found: "
+            f"`{module_name}`"
+        )
+
+        st.exception(error)
+
+    except AttributeError as error:
+
+        st.error(
+            f"The page `{module_name}` does not contain "
+            f"the function `{function_name}()`."
+        )
+
+        st.exception(error)
+
+    except Exception as error:
+
+        st.error(
+            f"Error loading `{module_name}`."
+        )
+
+        st.exception(error)
+
+
 # ============================================================
 # PAGE ROUTING
 # ============================================================
@@ -84,105 +143,95 @@ page = st.sidebar.radio(
 
 if page == "🏠 Home":
 
-    from pages.home import show
-
-    show()
+    load_page(
+        "pages.home",
+        "show",
+    )
 
 
 elif page == "📝 Exam Scanner":
 
-    from pages.exam_scanner import show
-
-    show()
+    load_page(
+        "pages.exam_scanner",
+        "show",
+    )
 
 
 elif page == "🤖 AI Teacher":
 
-    from pages.ai_teacher import show
-
-    show()
+    load_page(
+        "pages.ai_teacher",
+        "show",
+    )
 
 
 elif page == "🔍 Question Solver":
 
-    from pages.question_solver import show
-
-    show()
+    load_page(
+        "pages.question_solver",
+        "show",
+    )
 
 
 elif page == "📚 Courses":
 
-    from pages.courses import show
-
-    show()
+    load_page(
+        "pages.courses",
+        "show",
+    )
 
 
 elif page == "👨‍🏫 Tutors":
 
-    from pages.tutors import show
-
-    show()
+    load_page(
+        "pages.tutors",
+        "show",
+    )
 
 
 elif page == "🏫 Schools":
 
-    from pages.schools import show
-
-    show()
+    load_page(
+        "pages.schools",
+        "show",
+    )
 
 
 elif page == "📊 Results":
 
-    from pages.results import show
+    load_page(
+        "pages.results",
+        "show",
+    )
 
-    show()
-
-
-# ============================================================
-# TEACHER PORTAL
-# ============================================================
 
 elif page == "👨‍🏫 Teacher Portal":
 
-    from pages.teacher_portal import (
-        show_teacher_portal
+    load_page(
+        "pages.teacher_portal",
+        "show_teacher_portal",
     )
 
-    show_teacher_portal()
-
-
-# ============================================================
-# PRINCIPAL PORTAL
-# ============================================================
 
 elif page == "🏫 Principal Portal":
 
-    from pages.principal_portal import (
-        show_principal_portal
+    load_page(
+        "pages.principal_portal",
+        "show_principal_portal",
     )
 
-    show_principal_portal()
-
-
-# ============================================================
-# STUDENT PORTAL
-# ============================================================
 
 elif page == "🎓 Student Portal":
 
-    from pages.student_portal import (
-        show_student_portal
+    load_page(
+        "pages.student_portal",
+        "show_student_portal",
     )
 
-    show_student_portal()
-
-
-# ============================================================
-# PROFILE
-# ============================================================
 
 elif page == "👤 Profile":
 
-    from pages.profile import show
-
-    show()
+    load_page(
+        "pages.profile",
+        "show",
+    )
