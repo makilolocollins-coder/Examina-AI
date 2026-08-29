@@ -100,16 +100,19 @@ class School(Base):
     students = relationship(
         "Student",
         back_populates="school",
+        cascade="all, delete-orphan",
     )
 
     teachers = relationship(
         "Teacher",
         back_populates="school",
+        cascade="all, delete-orphan",
     )
 
     classes = relationship(
         "SchoolClass",
         back_populates="school",
+        cascade="all, delete-orphan",
     )
 
 
@@ -121,7 +124,7 @@ class School(Base):
 #
 # 2026/2027
 #
-# One academic session contains three terms:
+# Each session contains:
 #
 # 1st Term
 # 2nd Term
@@ -163,7 +166,7 @@ class AcademicSession(Base):
     )
 
     # --------------------------------------------------------
-    # RELATIONSHIP TO TERMS
+    # RELATIONSHIPS
     # --------------------------------------------------------
 
     terms = relationship(
@@ -175,14 +178,6 @@ class AcademicSession(Base):
 
 # ============================================================
 # ACADEMIC TERM
-# ============================================================
-#
-# Each academic session has:
-#
-# 1st Term
-# 2nd Term
-# 3rd Term
-#
 # ============================================================
 
 class AcademicTerm(Base):
@@ -254,6 +249,25 @@ class AcademicTerm(Base):
 # ============================================================
 # SCHOOL CLASS
 # ============================================================
+#
+# Examples:
+#
+# Primary 1
+# Primary 2
+# JSS 1
+# JSS 2
+# JSS 3
+# SS 1
+# SS 2
+# SS 3
+#
+# For SS classes, field can be:
+#
+# Science
+# Humanities
+# Commercial
+#
+# ============================================================
 
 class SchoolClass(Base):
 
@@ -285,6 +299,10 @@ class SchoolClass(Base):
         nullable=False,
     )
 
+    # --------------------------------------------------------
+    # RELATIONSHIPS
+    # --------------------------------------------------------
+
     school = relationship(
         "School",
         back_populates="classes",
@@ -294,6 +312,11 @@ class SchoolClass(Base):
         "Student",
         back_populates="school_class",
     )
+
+    # --------------------------------------------------------
+    # PREVENT DUPLICATE CLASS NAMES
+    # WITHIN THE SAME SCHOOL
+    # --------------------------------------------------------
 
     __table_args__ = (
         UniqueConstraint(
@@ -306,6 +329,26 @@ class SchoolClass(Base):
 
 # ============================================================
 # STUDENT
+# ============================================================
+#
+# IMPORTANT:
+#
+# The student does NOT store:
+#
+# class_name
+# education_level
+# field
+#
+# Those are obtained through SchoolClass.
+#
+# Example:
+#
+# student.school_class.name
+# student.school_class.education_level
+# student.school_class.field
+#
+# This prevents contradictory data.
+#
 # ============================================================
 
 class Student(Base):
@@ -321,7 +364,6 @@ class Student(Base):
     admission_number: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
-        unique=True,
     )
 
     first_name: Mapped[str] = mapped_column(
@@ -351,14 +393,6 @@ class Student(Base):
     # --------------------------------------------------------
     # CLASS
     # --------------------------------------------------------
-    #
-    # No class_name here.
-    #
-    # The class is obtained through:
-    #
-    # student.school_class.name
-    #
-    # --------------------------------------------------------
 
     class_id: Mapped[int] = mapped_column(
         ForeignKey("school_classes.id"),
@@ -366,32 +400,8 @@ class Student(Base):
     )
 
     # --------------------------------------------------------
-    # EDUCATION LEVEL
+    # STATUS
     # --------------------------------------------------------
-
-    education_level: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-    )
-
-    # --------------------------------------------------------
-    # FIELD / STREAM
-    # --------------------------------------------------------
-    #
-    # Examples:
-    #
-    # Science
-    # Humanities
-    # Business
-    #
-    # Can be NULL for Primary and JSS.
-    #
-    # --------------------------------------------------------
-
-    field: Mapped[str | None] = mapped_column(
-        String(100),
-        nullable=True,
-    )
 
     active: Mapped[bool] = mapped_column(
         Boolean,
@@ -429,6 +439,18 @@ class Student(Base):
         "Result",
         back_populates="student",
         cascade="all, delete-orphan",
+    )
+
+    # --------------------------------------------------------
+    # ADMISSION NUMBER UNIQUE PER SCHOOL
+    # --------------------------------------------------------
+
+    __table_args__ = (
+        UniqueConstraint(
+            "school_id",
+            "admission_number",
+            name="unique_admission_number_per_school",
+        ),
     )
 
 
@@ -520,6 +542,10 @@ class Subject(Base):
         nullable=False,
     )
 
+    # --------------------------------------------------------
+    # RELATIONSHIPS
+    # --------------------------------------------------------
+
     student_subjects = relationship(
         "StudentSubject",
         back_populates="subject",
@@ -535,7 +561,8 @@ class Subject(Base):
 # STUDENT SUBJECT
 # ============================================================
 #
-# Records which subjects a student takes in a particular term.
+# Defines the subjects a particular student takes
+# during a particular academic term.
 #
 # Example:
 #
@@ -608,11 +635,11 @@ class StudentSubject(Base):
 # RESULT
 # ============================================================
 #
-# Each result belongs to:
+# One result represents:
 #
 # Student
-# Subject
-# Academic Term
+# + Subject
+# + Academic Term
 #
 # Example:
 #
@@ -621,8 +648,8 @@ class StudentSubject(Base):
 # 2026/2027
 # 1st Term
 #
-# First Test = 18
-# Second Test = 17
+# 1st Test = 18
+# 2nd Test = 17
 # Exam = 55
 # Total = 90
 # Grade = A
@@ -684,13 +711,27 @@ class Result(Base):
     )
 
     # --------------------------------------------------------
-    # GRADE AND POSITION
+    # GRADE
     # --------------------------------------------------------
 
     grade: Mapped[str | None] = mapped_column(
         String(10),
         nullable=True,
     )
+
+    # --------------------------------------------------------
+    # SUBJECT POSITION
+    # --------------------------------------------------------
+    #
+    # Example:
+    #
+    # Mathematics:
+    #
+    # Student A = 95 → 1st
+    # Student B = 88 → 2nd
+    # Student C = 76 → 3rd
+    #
+    # --------------------------------------------------------
 
     position: Mapped[int | None] = mapped_column(
         Integer,
