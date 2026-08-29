@@ -696,7 +696,17 @@ def build_student_report(
             if term_report
             else None
         ),
+        "principal_approved":
+         report.principal_approved,
 
+        "approved_at":
+        report.approved_at,
+
+        "year_average":
+        report.year_average,
+
+        "promotion_status":
+        report.promotion_status,
         # ====================================================
         # THIRD TERM PROMOTION
         # ====================================================
