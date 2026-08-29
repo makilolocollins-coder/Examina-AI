@@ -6,6 +6,10 @@ import streamlit as st
 # Main Application
 # ============================================================
 
+from database.database import create_database
+
+create_database()
+
 st.set_page_config(
     page_title="Examina AI",
     page_icon="🎓",
