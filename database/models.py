@@ -126,7 +126,7 @@ class School(Base):
 #
 # 2026/2027
 #
-# Each session contains:
+# Every academic session contains:
 #
 # 1st Term
 # 2nd Term
@@ -168,7 +168,7 @@ class AcademicSession(Base):
     )
 
     # --------------------------------------------------------
-    # TERMS
+    # RELATIONSHIP
     # --------------------------------------------------------
 
     terms = relationship(
@@ -204,8 +204,6 @@ class AcademicTerm(Base):
     # 1 = 1st Term
     # 2 = 2nd Term
     # 3 = 3rd Term
-    #
-    # This is better than relying on the text "1st Term".
     #
     # --------------------------------------------------------
 
@@ -267,6 +265,7 @@ class AcademicTerm(Base):
     # --------------------------------------------------------
 
     __table_args__ = (
+
         UniqueConstraint(
             "academic_session_id",
             "term_number",
@@ -315,6 +314,10 @@ class SchoolClass(Base):
         nullable=False,
     )
 
+    # --------------------------------------------------------
+    # RELATIONSHIPS
+    # --------------------------------------------------------
+
     school = relationship(
         "School",
         back_populates="classes",
@@ -325,7 +328,13 @@ class SchoolClass(Base):
         back_populates="school_class",
     )
 
+    # --------------------------------------------------------
+    # PREVENT DUPLICATE CLASS NAMES
+    # WITHIN THE SAME SCHOOL
+    # --------------------------------------------------------
+
     __table_args__ = (
+
         UniqueConstraint(
             "name",
             "school_id",
@@ -381,6 +390,14 @@ class Student(Base):
     # --------------------------------------------------------
     # CLASS
     # --------------------------------------------------------
+    #
+    # class_id is the single source of truth.
+    #
+    # Class name is accessed through:
+    #
+    # student.school_class.name
+    #
+    # --------------------------------------------------------
 
     class_id: Mapped[int] = mapped_column(
         ForeignKey("school_classes.id"),
@@ -398,6 +415,16 @@ class Student(Base):
 
     # --------------------------------------------------------
     # FIELD / STREAM
+    # --------------------------------------------------------
+    #
+    # Examples:
+    #
+    # Science
+    # Humanities
+    # Business
+    #
+    # Usually NULL for Primary and JSS.
+    #
     # --------------------------------------------------------
 
     field: Mapped[str | None] = mapped_column(
@@ -501,9 +528,18 @@ class Teacher(Base):
         nullable=False,
     )
 
+    # --------------------------------------------------------
+    # RELATIONSHIPS
+    # --------------------------------------------------------
+
     school = relationship(
         "School",
         back_populates="teachers",
+    )
+
+    approved_reports = relationship(
+        "StudentTermReport",
+        back_populates="approving_principal",
     )
 
 
@@ -538,6 +574,10 @@ class Subject(Base):
         nullable=False,
     )
 
+    # --------------------------------------------------------
+    # RELATIONSHIPS
+    # --------------------------------------------------------
+
     student_subjects = relationship(
         "StudentSubject",
         back_populates="subject",
@@ -551,6 +591,18 @@ class Subject(Base):
 
 # ============================================================
 # STUDENT SUBJECT
+# ============================================================
+#
+# Defines the subjects a student takes during a particular
+# academic term.
+#
+# Example:
+#
+# John
+# Mathematics
+# 2026/2027
+# 1st Term
+#
 # ============================================================
 
 class StudentSubject(Base):
@@ -578,6 +630,10 @@ class StudentSubject(Base):
         nullable=False,
     )
 
+    # --------------------------------------------------------
+    # RELATIONSHIPS
+    # --------------------------------------------------------
+
     student = relationship(
         "Student",
         back_populates="subjects",
@@ -593,7 +649,12 @@ class StudentSubject(Base):
         back_populates="student_subjects",
     )
 
+    # --------------------------------------------------------
+    # PREVENT DUPLICATES
+    # --------------------------------------------------------
+
     __table_args__ = (
+
         UniqueConstraint(
             "student_id",
             "subject_id",
@@ -605,6 +666,15 @@ class StudentSubject(Base):
 
 # ============================================================
 # RESULT
+# ============================================================
+#
+# Contains the academic score for ONE subject.
+#
+# Principal approval is NOT stored here.
+#
+# Principal approval belongs to StudentTermReport because
+# the principal approves the student's COMPLETE report.
+#
 # ============================================================
 
 class Result(Base):
@@ -632,32 +702,6 @@ class Result(Base):
         nullable=False,
     )
 
-
-    # ============================================================
-# PRINCIPAL APPROVAL
-# ============================================================
-
-principal_approved: Mapped[bool] = mapped_column(
-    Boolean,
-    default=False,
-    nullable=False,
-)
-
-principal_approved_at: Mapped[datetime | None] = mapped_column(
-    DateTime,
-    nullable=True,
-)
-
-principal_id: Mapped[int | None] = mapped_column(
-    ForeignKey("teachers.id"),
-    nullable=True,
-)
-
-principal_remark: Mapped[str | None] = mapped_column(
-    Text,
-    nullable=True,
-)
-    
     # --------------------------------------------------------
     # SCORES
     # --------------------------------------------------------
@@ -724,10 +768,11 @@ principal_remark: Mapped[str | None] = mapped_column(
     )
 
     # --------------------------------------------------------
-    # PREVENT DUPLICATE RESULT
+    # PREVENT DUPLICATE RESULTS
     # --------------------------------------------------------
 
     __table_args__ = (
+
         UniqueConstraint(
             "student_id",
             "subject_id",
@@ -741,10 +786,20 @@ principal_remark: Mapped[str | None] = mapped_column(
 # STUDENT TERM REPORT
 # ============================================================
 #
-# This represents the COMPLETE report of one student
-# for one academic term.
+# Represents ONE COMPLETE REPORT for ONE STUDENT
+# in ONE ACADEMIC TERM.
 #
-# Principal approval happens at this level.
+# Example:
+#
+# John Doe
+# 2026/2027
+# 3rd Term
+#
+# Teacher's remark
+# Principal's remark
+# Principal approval
+# Year average
+# PASS / FAIL
 #
 # ============================================================
 
@@ -768,7 +823,7 @@ class StudentTermReport(Base):
     )
 
     # --------------------------------------------------------
-    # TERM
+    # ACADEMIC TERM
     # --------------------------------------------------------
 
     academic_term_id: Mapped[int] = mapped_column(
@@ -776,29 +831,29 @@ class StudentTermReport(Base):
         nullable=False,
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # TEACHER'S REMARK
-    # --------------------------------------------------------
+    # ========================================================
 
     teachers_remark: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # PRINCIPAL'S REMARK
-    # --------------------------------------------------------
+    # ========================================================
 
-    principals_remark: Mapped[str | None] = mapped_column(
+    principal_remark: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # YEAR AVERAGE
-    # --------------------------------------------------------
+    # ========================================================
     #
-    # Only meaningful on 3rd Term.
+    # Only populated for 3rd Term.
     #
     # Formula:
     #
@@ -806,34 +861,34 @@ class StudentTermReport(Base):
     #  + 2nd Term Average
     #  + 3rd Term Average) / 3
     #
-    # --------------------------------------------------------
+    # ========================================================
 
     year_average: Mapped[float | None] = mapped_column(
         Float,
         nullable=True,
     )
 
-    # --------------------------------------------------------
-    # PROMOTION STATUS
-    # --------------------------------------------------------
-    #
-    # Mainly used during 3rd Term.
+    # ========================================================
+    # FINAL DECISION
+    # ========================================================
     #
     # Examples:
     #
-    # PROMOTED
-    # NOT_PROMOTED
+    # PASS
+    # FAIL
     #
-    # --------------------------------------------------------
+    # This is mainly used for 3rd Term.
+    #
+    # ========================================================
 
-    promotion_status: Mapped[str | None] = mapped_column(
-        String(30),
+    final_decision: Mapped[str | None] = mapped_column(
+        String(20),
         nullable=True,
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # PRINCIPAL APPROVAL
-    # --------------------------------------------------------
+    # ========================================================
 
     principal_approved: Mapped[bool] = mapped_column(
         Boolean,
@@ -841,18 +896,42 @@ class StudentTermReport(Base):
         nullable=False,
     )
 
-    # --------------------------------------------------------
+    # ========================================================
+    # PRINCIPAL WHO APPROVED
+    # ========================================================
+
+    principal_id: Mapped[int | None] = mapped_column(
+        ForeignKey("teachers.id"),
+        nullable=True,
+    )
+
+    # ========================================================
     # APPROVAL DATE
-    # --------------------------------------------------------
+    # ========================================================
 
     approved_at: Mapped[datetime | None] = mapped_column(
         DateTime,
         nullable=True,
     )
 
-    # --------------------------------------------------------
+    # ========================================================
+    # REPORT PUBLISHED
+    # ========================================================
+    #
+    # Even after calculation, the report is not available
+    # for student download until the principal approves it.
+    #
+    # ========================================================
+
+    published: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+
+    # ========================================================
     # RELATIONSHIPS
-    # --------------------------------------------------------
+    # ========================================================
 
     student = relationship(
         "Student",
@@ -864,11 +943,17 @@ class StudentTermReport(Base):
         back_populates="term_reports",
     )
 
-    # --------------------------------------------------------
+    approving_principal = relationship(
+        "Teacher",
+        back_populates="approved_reports",
+    )
+
+    # ========================================================
     # PREVENT DUPLICATE REPORT
-    # --------------------------------------------------------
+    # ========================================================
 
     __table_args__ = (
+
         UniqueConstraint(
             "student_id",
             "academic_term_id",
