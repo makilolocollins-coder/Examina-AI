@@ -3,20 +3,18 @@
 # RESULT SERVICE
 # ============================================================
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
-from database.models import (
+from database import (
     Student,
     Subject,
     Result,
-    AcademicTerm,
-    StudentSubject,
 )
 
 
 # ============================================================
-# GRADE CALCULATION
+# GRADE CONFIGURATION
 # ============================================================
 
 def calculate_grade(total: float) -> str:
@@ -34,23 +32,23 @@ def calculate_grade(total: float) -> str:
     if total >= 70:
         return "A"
 
-    if total >= 60:
+    elif total >= 60:
         return "B"
 
-    if total >= 50:
+    elif total >= 50:
         return "C"
 
-    if total >= 45:
+    elif total >= 45:
         return "D"
 
-    if total >= 40:
+    elif total >= 40:
         return "E"
 
     return "F"
 
 
 # ============================================================
-# CALCULATE TOTAL
+# CALCULATE RESULT TOTAL
 # ============================================================
 
 def calculate_total(
@@ -59,21 +57,109 @@ def calculate_total(
     exam: float,
 ) -> float:
     """
-    Calculate the student's total score.
+    Calculate total score.
+
+    Total =
+        First Test
+        + Second Test
+        + Exam
     """
 
-    return (
+    total = (
         float(first_test)
         + float(second_test)
         + float(exam)
     )
 
+    return round(total, 2)
+
 
 # ============================================================
-# CREATE OR UPDATE RESULT
+# UPDATE ONE RESULT
 # ============================================================
 
-def save_result(
+def update_result(
+    db: Session,
+    result_id: int,
+    first_test: float,
+    second_test: float,
+    exam: float,
+):
+    """
+    Update a student's result.
+
+    Automatically calculates:
+        total
+        grade
+    """
+
+    result = db.get(
+        Result,
+        result_id,
+    )
+
+    if result is None:
+        raise ValueError(
+            f"Result with ID {result_id} was not found."
+        )
+
+    # --------------------------------------------------------
+    # Validate scores
+    # --------------------------------------------------------
+
+    if first_test < 0:
+        raise ValueError(
+            "First test score cannot be negative."
+        )
+
+    if second_test < 0:
+        raise ValueError(
+            "Second test score cannot be negative."
+        )
+
+    if exam < 0:
+        raise ValueError(
+            "Exam score cannot be negative."
+        )
+
+    # --------------------------------------------------------
+    # Save scores
+    # --------------------------------------------------------
+
+    result.first_test = float(first_test)
+    result.second_test = float(second_test)
+    result.exam = float(exam)
+
+    # --------------------------------------------------------
+    # Calculate total
+    # --------------------------------------------------------
+
+    result.total = calculate_total(
+        first_test=first_test,
+        second_test=second_test,
+        exam=exam,
+    )
+
+    # --------------------------------------------------------
+    # Calculate grade
+    # --------------------------------------------------------
+
+    result.grade = calculate_grade(
+        result.total
+    )
+
+    db.commit()
+
+    db.refresh(result)
+
+    return result
+
+
+# ============================================================
+# CREATE RESULT
+# ============================================================
+
+def create_result(
     db: Session,
     student_id: int,
     subject_id: int,
@@ -83,11 +169,15 @@ def save_result(
     exam: float = 0.0,
 ):
     """
-    Create a new result or update an existing result.
+    Create a new result for:
+
+        Student
+        Subject
+        Academic Term
     """
 
     # --------------------------------------------------------
-    # Validate student
+    # Check student
     # --------------------------------------------------------
 
     student = db.get(
@@ -101,7 +191,7 @@ def save_result(
         )
 
     # --------------------------------------------------------
-    # Validate subject
+    # Check subject
     # --------------------------------------------------------
 
     subject = db.get(
@@ -115,58 +205,21 @@ def save_result(
         )
 
     # --------------------------------------------------------
-    # Validate term
+    # Prevent duplicate result
     # --------------------------------------------------------
 
-    term = db.get(
-        AcademicTerm,
-        academic_term_id,
-    )
-
-    if term is None:
-        raise ValueError(
-            "Academic term does not exist."
-        )
-
-    # --------------------------------------------------------
-    # Make sure student takes subject
-    # --------------------------------------------------------
-
-    assignment = db.scalar(
-        select(StudentSubject).where(
-            StudentSubject.student_id == student_id,
-            StudentSubject.subject_id == subject_id,
-            StudentSubject.academic_term_id == academic_term_id,
+    existing = db.scalar(
+        select(Result).where(
+            Result.student_id == student_id,
+            Result.subject_id == subject_id,
+            Result.academic_term_id == academic_term_id,
         )
     )
 
-    if assignment is None:
+    if existing is not None:
         raise ValueError(
-            "This subject has not been assigned "
-            "to this student for this term."
-        )
-
-    # --------------------------------------------------------
-    # Validate scores
-    # --------------------------------------------------------
-
-    first_test = float(first_test)
-    second_test = float(second_test)
-    exam = float(exam)
-
-    if first_test < 0 or first_test > 20:
-        raise ValueError(
-            "First test must be between 0 and 20."
-        )
-
-    if second_test < 0 or second_test > 20:
-        raise ValueError(
-            "Second test must be between 0 and 20."
-        )
-
-    if exam < 0 or exam > 60:
-        raise ValueError(
-            "Exam must be between 0 and 60."
+            "A result already exists for this "
+            "student, subject and academic term."
         )
 
     # --------------------------------------------------------
@@ -179,79 +232,28 @@ def save_result(
         exam,
     )
 
-    grade = calculate_grade(total)
-
-    # --------------------------------------------------------
-    # Find existing result
-    # --------------------------------------------------------
-
-    result = db.scalar(
-        select(Result).where(
-            Result.student_id == student_id,
-            Result.subject_id == subject_id,
-            Result.academic_term_id == academic_term_id,
-        )
-    )
-
     # --------------------------------------------------------
     # Create result
     # --------------------------------------------------------
 
-    if result is None:
+    result = Result(
+        student_id=student_id,
+        subject_id=subject_id,
+        academic_term_id=academic_term_id,
+        first_test=float(first_test),
+        second_test=float(second_test),
+        exam=float(exam),
+        total=total,
+        grade=calculate_grade(total),
+    )
 
-        result = Result(
-            student_id=student_id,
-            subject_id=subject_id,
-            academic_term_id=academic_term_id,
-            first_test=first_test,
-            second_test=second_test,
-            exam=exam,
-            total=total,
-            grade=grade,
-        )
-
-        db.add(result)
-
-    # --------------------------------------------------------
-    # Update result
-    # --------------------------------------------------------
-
-    else:
-
-        result.first_test = first_test
-        result.second_test = second_test
-        result.exam = exam
-        result.total = total
-        result.grade = grade
+    db.add(result)
 
     db.commit()
 
     db.refresh(result)
 
     return result
-
-
-# ============================================================
-# GET ONE RESULT
-# ============================================================
-
-def get_result(
-    db: Session,
-    student_id: int,
-    subject_id: int,
-    academic_term_id: int,
-):
-    """
-    Get one student's result for one subject and term.
-    """
-
-    return db.scalar(
-        select(Result).where(
-            Result.student_id == student_id,
-            Result.subject_id == subject_id,
-            Result.academic_term_id == academic_term_id,
-        )
-    )
 
 
 # ============================================================
@@ -264,8 +266,8 @@ def get_student_results(
     academic_term_id: int,
 ):
     """
-    Get all results belonging to a student
-    for a particular term.
+    Get all results belonging to one student
+    in one academic term.
     """
 
     query = (
@@ -274,17 +276,45 @@ def get_student_results(
             Result.student_id == student_id,
             Result.academic_term_id == academic_term_id,
         )
-        .join(
-            Subject,
-            Result.subject_id == Subject.id,
-        )
         .order_by(
-            Subject.name
+            Result.subject_id
         )
     )
 
     return list(
         db.scalars(query).all()
+    )
+
+
+# ============================================================
+# CALCULATE STUDENT TOTAL
+# ============================================================
+
+def calculate_student_total(
+    db: Session,
+    student_id: int,
+    academic_term_id: int,
+) -> float:
+    """
+    Add all subject totals for one student
+    during one academic term.
+    """
+
+    result = db.scalar(
+        select(
+            func.coalesce(
+                func.sum(Result.total),
+                0,
+            )
+        ).where(
+            Result.student_id == student_id,
+            Result.academic_term_id == academic_term_id,
+        )
+    )
+
+    return round(
+        float(result or 0),
+        2,
     )
 
 
@@ -296,27 +326,40 @@ def calculate_student_average(
     db: Session,
     student_id: int,
     academic_term_id: int,
-):
+) -> float:
     """
-    Calculate the student's average score
-    across all subjects for a term.
+    Calculate average score across the subjects
+    for one student in one academic term.
+
+    Example:
+
+        Mathematics = 80
+        Chemistry  = 70
+        Physics    = 90
+
+        Average = 80
     """
 
     results = get_student_results(
-        db,
-        student_id,
-        academic_term_id,
+        db=db,
+        student_id=student_id,
+        academic_term_id=academic_term_id,
     )
 
     if not results:
         return 0.0
 
     total = sum(
-        result.total
+        float(result.total)
         for result in results
     )
 
-    return total / len(results)
+    average = total / len(results)
+
+    return round(
+        average,
+        2,
+    )
 
 
 # ============================================================
@@ -327,12 +370,22 @@ def calculate_subject_positions(
     db: Session,
     subject_id: int,
     academic_term_id: int,
+    school_id: int,
+    class_id: int,
 ):
     """
-    Rank students in a subject from highest
-    score to lowest score.
+    Rank students in one subject.
 
-    Equal scores receive the same position.
+    Ranking is restricted to:
+
+        SAME SCHOOL
+        SAME CLASS
+        SAME ACADEMIC TERM
+
+    Highest score = Position 1.
+
+    Students with equal scores receive
+    the same position.
     """
 
     query = (
@@ -344,6 +397,8 @@ def calculate_subject_positions(
         .where(
             Result.subject_id == subject_id,
             Result.academic_term_id == academic_term_id,
+            Student.school_id == school_id,
+            Student.class_id == class_id,
             Student.active.is_(True),
         )
         .order_by(
@@ -358,14 +413,32 @@ def calculate_subject_positions(
     previous_score = None
     position = 0
 
-    for index, result in enumerate(results, start=1):
+    for index, result in enumerate(
+        results,
+        start=1,
+    ):
 
-        if result.total != previous_score:
+        current_score = float(
+            result.total
+        )
+
+        # ----------------------------------------------------
+        # Competition ranking
+        #
+        # 95 → 1st
+        # 95 → 1st
+        # 90 → 3rd
+        # ----------------------------------------------------
+
+        if (
+            previous_score is None
+            or current_score != previous_score
+        ):
             position = index
 
         result.position = position
 
-        previous_score = result.total
+        previous_score = current_score
 
     db.commit()
 
@@ -379,131 +452,414 @@ def calculate_subject_positions(
 def calculate_overall_positions(
     db: Session,
     academic_term_id: int,
+    school_id: int,
+    class_id: int,
 ):
     """
-    Rank students according to their average score
-    across their subjects.
+    Rank students according to their overall
+    average.
 
-    Highest average = position 1.
+    Ranking is restricted to:
+
+        SAME SCHOOL
+        SAME CLASS
+        SAME ACADEMIC TERM
+
+    Highest average = Position 1.
     """
 
-    students_query = select(Student).where(
-        Student.active.is_(True)
+    # --------------------------------------------------------
+    # Get students in this school and class
+    # --------------------------------------------------------
+
+    students_query = (
+        select(Student)
+        .where(
+            Student.school_id == school_id,
+            Student.class_id == class_id,
+            Student.active.is_(True),
+        )
+        .order_by(
+            Student.last_name,
+            Student.first_name,
+        )
     )
 
     students = list(
-        db.scalars(students_query).all()
-    )
-
-    student_averages = []
-
-    for student in students:
-
-        average = calculate_student_average(
-            db,
-            student.id,
-            academic_term_id,
-        )
-
-        if average > 0:
-
-            student_averages.append(
-                (
-                    student,
-                    average,
-                )
-            )
-
-    # --------------------------------------------------------
-    # Highest average first
-    # --------------------------------------------------------
-
-    student_averages.sort(
-        key=lambda item: item[1],
-        reverse=True,
+        db.scalars(
+            students_query
+        ).all()
     )
 
     rankings = []
 
-    previous_average = None
-    position = 0
+    # --------------------------------------------------------
+    # Calculate average for every student
+    # --------------------------------------------------------
 
-    for index, (student, average) in enumerate(
-        student_averages,
-        start=1,
-    ):
+    for student in students:
 
-        if average != previous_average:
-            position = index
+        results = get_student_results(
+            db=db,
+            student_id=student.id,
+            academic_term_id=academic_term_id,
+        )
+
+        # ----------------------------------------------------
+        # Ignore students without results
+        # ----------------------------------------------------
+
+        if not results:
+            continue
+
+        total = sum(
+            float(result.total)
+            for result in results
+        )
+
+        subject_count = len(results)
+
+        average = total / subject_count
 
         rankings.append(
             {
                 "student_id": student.id,
                 "student_name": (
                     f"{student.first_name} "
+                    f"{student.middle_name + ' ' if student.middle_name else ''}"
                     f"{student.last_name}"
                 ),
+                "total": round(
+                    total,
+                    2,
+                ),
+                "subjects": subject_count,
                 "average": round(
                     average,
                     2,
                 ),
-                "position": position,
             }
         )
 
-        previous_average = average
+    # --------------------------------------------------------
+    # Highest average first
+    # --------------------------------------------------------
+
+    rankings.sort(
+        key=lambda item: item["average"],
+        reverse=True,
+    )
+
+    # --------------------------------------------------------
+    # Assign positions
+    # --------------------------------------------------------
+
+    previous_average = None
+    position = 0
+
+    for index, student in enumerate(
+        rankings,
+        start=1,
+    ):
+
+        current_average = student[
+            "average"
+        ]
+
+        if (
+            previous_average is None
+            or current_average != previous_average
+        ):
+            position = index
+
+        student["position"] = position
+
+        previous_average = current_average
 
     return rankings
 
 
 # ============================================================
-# CALCULATE EVERYTHING
+# CALCULATE ALL POSITIONS
 # ============================================================
 
 def calculate_all_positions(
     db: Session,
     academic_term_id: int,
+    school_id: int,
+    class_id: int,
 ):
     """
-    Calculate subject positions for every subject
-    and overall student positions.
+    Calculate:
+
+        1. Subject positions
+        2. Overall class positions
+
+    Everything is restricted to:
+
+        School
+        Class
+        Academic Term
     """
 
     # --------------------------------------------------------
-    # Get subjects used in this term
+    # Find subjects used by this class and term
     # --------------------------------------------------------
 
     subjects_query = (
-        select(Result.subject_id)
+        select(
+            Result.subject_id
+        )
+        .join(
+            Student,
+            Result.student_id == Student.id,
+        )
         .where(
-            Result.academic_term_id == academic_term_id
+            Result.academic_term_id
+            == academic_term_id,
+
+            Student.school_id
+            == school_id,
+
+            Student.class_id
+            == class_id,
+
+            Student.active.is_(True),
         )
         .distinct()
     )
 
     subject_ids = list(
-        db.scalars(subjects_query).all()
+        db.scalars(
+            subjects_query
+        ).all()
     )
 
     # --------------------------------------------------------
-    # Subject rankings
+    # Calculate each subject's positions
     # --------------------------------------------------------
 
     for subject_id in subject_ids:
 
         calculate_subject_positions(
-            db,
-            subject_id,
-            academic_term_id,
+            db=db,
+            subject_id=subject_id,
+            academic_term_id=academic_term_id,
+            school_id=school_id,
+            class_id=class_id,
         )
 
     # --------------------------------------------------------
-    # Overall rankings
+    # Calculate overall positions
     # --------------------------------------------------------
 
-    overall_rankings = calculate_overall_positions(
-        db,
-        academic_term_id,
+    overall_rankings = (
+        calculate_overall_positions(
+            db=db,
+            academic_term_id=academic_term_id,
+            school_id=school_id,
+            class_id=class_id,
+        )
     )
 
     return overall_rankings
+
+
+# ============================================================
+# GET COMPLETE CLASS RESULTS
+# ============================================================
+
+def get_class_results(
+    db: Session,
+    academic_term_id: int,
+    school_id: int,
+    class_id: int,
+):
+    """
+    Return a complete result sheet for a class.
+
+    Includes:
+
+        Student
+        Subjects
+        Test scores
+        Exam
+        Total
+        Grade
+        Subject position
+        Overall average
+        Overall position
+    """
+
+    # --------------------------------------------------------
+    # Calculate positions first
+    # --------------------------------------------------------
+
+    rankings = calculate_all_positions(
+        db=db,
+        academic_term_id=academic_term_id,
+        school_id=school_id,
+        class_id=class_id,
+    )
+
+    # --------------------------------------------------------
+    # Create quick lookup
+    # --------------------------------------------------------
+
+    ranking_lookup = {
+        item["student_id"]: item
+        for item in rankings
+    }
+
+    # --------------------------------------------------------
+    # Get students
+    # --------------------------------------------------------
+
+    students_query = (
+        select(Student)
+        .where(
+            Student.school_id == school_id,
+            Student.class_id == class_id,
+            Student.active.is_(True),
+        )
+        .order_by(
+            Student.last_name,
+            Student.first_name,
+        )
+    )
+
+    students = list(
+        db.scalars(
+            students_query
+        ).all()
+    )
+
+    output = []
+
+    # --------------------------------------------------------
+    # Build result sheet
+    # --------------------------------------------------------
+
+    for student in students:
+
+        student_results = get_student_results(
+            db=db,
+            student_id=student.id,
+            academic_term_id=academic_term_id,
+        )
+
+        ranking = ranking_lookup.get(
+            student.id
+        )
+
+        subjects = []
+
+        for result in student_results:
+
+            subject = db.get(
+                Subject,
+                result.subject_id,
+            )
+
+            subjects.append(
+                {
+                    "subject_id": result.subject_id,
+                    "subject": (
+                        subject.name
+                        if subject
+                        else "Unknown"
+                    ),
+                    "first_test": result.first_test,
+                    "second_test": result.second_test,
+                    "exam": result.exam,
+                    "total": result.total,
+                    "grade": result.grade,
+                    "position": result.position,
+                }
+            )
+
+        output.append(
+            {
+                "student_id": student.id,
+
+                "admission_number":
+                    student.admission_number,
+
+                "student_name": (
+                    f"{student.first_name} "
+                    f"{student.middle_name + ' ' if student.middle_name else ''}"
+                    f"{student.last_name}"
+                ),
+
+                "subjects": subjects,
+
+                "total": (
+                    ranking["total"]
+                    if ranking
+                    else 0
+                ),
+
+                "average": (
+                    ranking["average"]
+                    if ranking
+                    else 0
+                ),
+
+                "overall_position": (
+                    ranking["position"]
+                    if ranking
+                    else None
+                ),
+            }
+        )
+
+    # --------------------------------------------------------
+    # Highest average first
+    # --------------------------------------------------------
+
+    output.sort(
+        key=lambda item: (
+            item["average"]
+            if item["average"] is not None
+            else 0
+        ),
+        reverse=True,
+    )
+
+    return output
+
+
+# ============================================================
+# GET STUDENT SUBJECTS
+# ============================================================
+
+def get_student_subjects(
+    db: Session,
+    student_id: int,
+    academic_term_id: int,
+):
+    """
+    Get all subjects a student takes
+    during a particular academic term.
+    """
+
+    query = (
+        select(Result)
+        .join(
+            Subject,
+            Result.subject_id == Subject.id,
+        )
+        .where(
+            Result.student_id == student_id,
+            Result.academic_term_id == academic_term_id,
+        )
+        .order_by(
+            Subject.name
+        )
+    )
+
+    return list(
+        db.scalars(
+            query
+        ).all()
+    )
