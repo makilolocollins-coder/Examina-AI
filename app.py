@@ -50,3 +50,44 @@ page = st.sidebar.radio(
         "👤 Profile"
     ]
 )
+
+# ============================================================
+# PAGE ROUTING
+# ============================================================
+ # ================================================================
+
+if page == "🏠 Home":
+    from pages.home import show
+    show()
+
+elif page == "📝 Exam Scanner":
+    from pages.exam_scanner import show
+    show()
+
+elif page == "🤖 AI Teacher":
+    from pages.ai_teacher import show
+    show()
+
+elif page == "🔍 Question Solver":
+    from pages.question_solver import show
+    show()
+
+elif page == "📚 Courses":
+    from pages.courses import show
+    show()
+
+elif page == "👨‍🏫 Tutors":
+    from pages.tutors import show
+    show()
+
+elif page == "🏫 Schools":
+    from pages.schools import show
+    show()
+
+elif page == "📊 Results":
+    from pages.results import show
+    show()
+
+elif page == "👤 Profile":
+    from pages.profile import show
+    show()
