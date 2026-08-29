@@ -40,7 +40,7 @@ def get_or_create_report(
     academic_term_id: int,
 ):
     """
-    Get the complete report for a student and term.
+    Get a student's report for a specific academic term.
 
     If the report does not exist, create it.
     """
@@ -81,7 +81,7 @@ def verify_principal(
     belongs to the selected school,
     and has been verified.
 
-    For now, principals are represented
+    Currently principals are represented
     by verified Teacher records.
     """
 
@@ -91,16 +91,19 @@ def verify_principal(
     )
 
     if principal is None:
+
         raise ValueError(
             "Principal account not found."
         )
 
     if principal.school_id != school_id:
+
         raise PermissionError(
             "This principal does not belong to this school."
         )
 
     if not principal.verified:
+
         raise PermissionError(
             "Principal account has not been verified."
         )
@@ -113,6 +116,10 @@ def verify_principal(
 # ============================================================
 
 def show_principal_portal():
+
+    # ========================================================
+    # PAGE HEADER
+    # ========================================================
 
     st.title("🏫 Principal Portal")
 
@@ -133,21 +140,26 @@ def show_principal_portal():
         # ====================================================
 
         if "principal_logged_in" not in st.session_state:
+
             st.session_state.principal_logged_in = False
 
         if "principal_id" not in st.session_state:
+
             st.session_state.principal_id = None
 
         if "principal_school_id" not in st.session_state:
+
             st.session_state.principal_school_id = None
 
         # ====================================================
-        # DEVELOPMENT LOGIN
+        # PRINCIPAL LOGIN
         # ====================================================
 
         if not st.session_state.principal_logged_in:
 
-            st.subheader("Principal Login")
+            st.subheader(
+                "Principal Login"
+            )
 
             st.info(
                 "Development login: enter the verified "
@@ -203,7 +215,9 @@ def show_principal_portal():
 
                 except Exception as error:
 
-                    st.error(str(error))
+                    st.error(
+                        str(error)
+                    )
 
             return
 
@@ -223,7 +237,9 @@ def show_principal_portal():
             )
 
             st.session_state.principal_logged_in = False
+
             st.session_state.principal_id = None
+
             st.session_state.principal_school_id = None
 
             return
@@ -251,9 +267,13 @@ def show_principal_portal():
 
         with st.sidebar:
 
-            st.title("Examina AI")
+            st.title(
+                "Examina AI"
+            )
 
-            st.caption("Principal Portal")
+            st.caption(
+                "Principal Portal"
+            )
 
             st.divider()
 
@@ -275,7 +295,9 @@ def show_principal_portal():
             ):
 
                 st.session_state.principal_logged_in = False
+
                 st.session_state.principal_id = None
+
                 st.session_state.principal_school_id = None
 
                 st.rerun()
@@ -301,13 +323,13 @@ def show_principal_portal():
 
                 except Exception:
 
-                    st.warning(
-                        "School badge could not be displayed."
-                    )
+                    pass
 
         with header_right:
 
-            st.title(school.name)
+            st.title(
+                school.name
+            )
 
             st.write(
                 f"{school.local_government}, "
@@ -335,7 +357,7 @@ def show_principal_portal():
         st.divider()
 
         # ====================================================
-        # ACADEMIC SESSION
+        # 1. ACADEMIC SESSION
         # ====================================================
 
         st.subheader(
@@ -366,7 +388,7 @@ def show_principal_portal():
         )
 
         # ====================================================
-        # ACADEMIC TERM
+        # 2. ACADEMIC TERM
         # ====================================================
 
         st.subheader(
@@ -401,7 +423,7 @@ def show_principal_portal():
         )
 
         # ====================================================
-        # CLASS
+        # 3. CLASS
         # ====================================================
 
         st.subheader(
@@ -412,7 +434,8 @@ def show_principal_portal():
             db.scalars(
                 select(SchoolClass)
                 .where(
-                    SchoolClass.school_id == school.id
+                    SchoolClass.school_id
+                    == school.id
                 )
                 .order_by(
                     SchoolClass.name
@@ -435,7 +458,7 @@ def show_principal_portal():
         )
 
         # ====================================================
-        # STUDENTS IN SELECTED CLASS
+        # GET STUDENTS IN SELECTED CLASS
         # ====================================================
 
         students = list(
@@ -467,8 +490,11 @@ def show_principal_portal():
         # ====================================================
 
         approved_count = 0
+
         published_count = 0
+
         pending_count = 0
+
         no_result_count = 0
 
         for student in students:
@@ -476,7 +502,9 @@ def show_principal_portal():
             report = db.scalar(
                 select(StudentTermReport)
                 .where(
-                    StudentTermReport.student_id == student.id,
+                    StudentTermReport.student_id
+                    == student.id,
+
                     StudentTermReport.academic_term_id
                     == selected_term.id,
                 )
@@ -485,7 +513,9 @@ def show_principal_portal():
             result_exists = db.scalar(
                 select(Result.id)
                 .where(
-                    Result.student_id == student.id,
+                    Result.student_id
+                    == student.id,
+
                     Result.academic_term_id
                     == selected_term.id,
                 )
@@ -551,12 +581,12 @@ def show_principal_portal():
         if no_result_count > 0:
 
             st.caption(
-                f"{no_result_count} student(s) have no "
-                f"results entered for this term."
+                f"{no_result_count} student(s) have "
+                "no results entered for this term."
             )
 
         # ====================================================
-        # STUDENT SELECTION
+        # 4. SELECT STUDENT
         # ====================================================
 
         st.divider()
@@ -611,7 +641,9 @@ def show_principal_portal():
 
         with info1:
 
-            st.write("**Student**")
+            st.write(
+                "**Student**"
+            )
 
             st.write(
                 " ".join(
@@ -628,7 +660,9 @@ def show_principal_portal():
 
         with info2:
 
-            st.write("**Admission Number**")
+            st.write(
+                "**Admission Number**"
+            )
 
             st.write(
                 selected_student.admission_number
@@ -636,14 +670,16 @@ def show_principal_portal():
 
         with info3:
 
-            st.write("**Class**")
+            st.write(
+                "**Class**"
+            )
 
             st.write(
                 selected_student.school_class.name
             )
 
         # ====================================================
-        # GET RESULTS
+        # GET STUDENT RESULTS
         # ====================================================
 
         results = list(
@@ -651,7 +687,8 @@ def show_principal_portal():
                 select(Result)
                 .join(
                     Subject,
-                    Result.subject_id == Subject.id,
+                    Result.subject_id
+                    == Subject.id,
                 )
                 .where(
                     Result.student_id
@@ -943,7 +980,7 @@ def show_principal_portal():
                 )
 
         # ====================================================
-        # APPROVAL ACTIONS
+        # PRINCIPAL DECISION
         # ====================================================
 
         st.divider()
@@ -981,15 +1018,25 @@ def show_principal_portal():
                     use_container_width=True,
                 ):
 
-                    report.published = True
+                    try:
 
-                    db.commit()
+                        report.published = True
 
-                    st.success(
-                        "Result published successfully."
-                    )
+                        db.commit()
 
-                    st.rerun()
+                        st.success(
+                            "Result published successfully."
+                        )
+
+                        st.rerun()
+
+                    except Exception as error:
+
+                        db.rollback()
+
+                        st.error(
+                            f"Could not publish result: {error}"
+                        )
 
             else:
 
@@ -1005,9 +1052,9 @@ def show_principal_portal():
 
             approve_col, reject_col = st.columns(2)
 
-            # ------------------------------------------------
+            # =================================================
             # APPROVE
-            # ------------------------------------------------
+            # =================================================
 
             with approve_col:
 
@@ -1019,9 +1066,9 @@ def show_principal_portal():
 
                     try:
 
-                        # ====================================
-                        # 3RD TERM REQUIREMENTS
-                        # ====================================
+                        # =====================================
+                        # 3RD TERM VALIDATION
+                        # =====================================
 
                         if selected_term.term_number == 3:
 
@@ -1034,9 +1081,9 @@ def show_principal_portal():
 
                                 st.stop()
 
-                            # -------------------------------
-                            # CALCULATE YEAR AVERAGE
-                            # -------------------------------
+                            # ================================
+                            # YEAR AVERAGE
+                            # ================================
 
                             year_average = (
                                 calculate_year_average(
@@ -1066,27 +1113,28 @@ def show_principal_portal():
                                 final_decision
                             )
 
-                        # ====================================
-                        # 1ST / 2ND TERM
-                        # ====================================
+                        # =====================================
+                        # 1ST AND 2ND TERM
+                        # =====================================
 
                         else:
 
                             report.year_average = None
+
                             report.final_decision = None
 
-                        # ====================================
+                        # =====================================
                         # PRINCIPAL REMARK
-                        # ====================================
+                        # =====================================
 
                         report.principal_remark = (
                             principal_remark.strip()
                             or None
                         )
 
-                        # ====================================
+                        # =====================================
                         # APPROVAL
-                        # ====================================
+                        # =====================================
 
                         report.principal_approved = True
 
@@ -1098,16 +1146,9 @@ def show_principal_portal():
                             datetime.utcnow()
                         )
 
-                        # ====================================
-                        # IMPORTANT
-                        # ====================================
-                        #
-                        # Approval does NOT automatically
-                        # publish the result.
-                        #
-                        # Principal must click Publish.
-                        #
-                        # ====================================
+                        # =====================================
+                        # DO NOT AUTO-PUBLISH
+                        # =====================================
 
                         report.published = False
 
@@ -1127,9 +1168,9 @@ def show_principal_portal():
                             f"Could not approve result: {error}"
                         )
 
-            # ------------------------------------------------
+            # =================================================
             # REJECT
-            # ------------------------------------------------
+            # =================================================
 
             with reject_col:
 
@@ -1147,28 +1188,38 @@ def show_principal_portal():
 
                     else:
 
-                        report.principal_remark = (
-                            principal_remark.strip()
-                        )
+                        try:
 
-                        report.principal_approved = False
+                            report.principal_remark = (
+                                principal_remark.strip()
+                            )
 
-                        report.published = False
+                            report.principal_approved = False
 
-                        report.principal_id = (
-                            st.session_state.principal_id
-                        )
+                            report.published = False
 
-                        report.approved_at = None
+                            report.principal_id = (
+                                st.session_state.principal_id
+                            )
 
-                        db.commit()
+                            report.approved_at = None
 
-                        st.warning(
-                            "Result rejected and returned "
-                            "for correction."
-                        )
+                            db.commit()
 
-                        st.rerun()
+                            st.warning(
+                                "Result rejected and returned "
+                                "for correction."
+                            )
+
+                            st.rerun()
+
+                        except Exception as error:
+
+                            db.rollback()
+
+                            st.error(
+                                f"Could not reject result: {error}"
+                            )
 
         # ====================================================
         # APPROVAL INFORMATION
