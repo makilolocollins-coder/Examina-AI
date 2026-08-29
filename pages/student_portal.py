@@ -15,9 +15,13 @@
 #       ↓
 #   If NOT approved → Block result
 #       ↓
-#   If approved → Show result
+#   If approved → Check publication
 #       ↓
-#   If published → Allow download
+#   If NOT published → Block result
+#       ↓
+#   If published → Show result
+#       ↓
+#   Allow download
 #
 # ============================================================
 
@@ -68,10 +72,6 @@ def show_student_portal():
 
         # ====================================================
         # DEVELOPMENT LOGIN
-        # ====================================================
-        #
-        # Later replace with proper student authentication.
-        #
         # ====================================================
 
         if not st.session_state.student_logged_in:
@@ -142,6 +142,7 @@ def show_student_portal():
             )
 
             st.session_state.student_logged_in = False
+
             st.session_state.student_id = None
 
             return
@@ -169,7 +170,9 @@ def show_student_portal():
 
         with st.sidebar:
 
-            st.title("Examina AI")
+            st.title(
+                "Examina AI"
+            )
 
             st.caption(
                 "Student Portal"
@@ -196,6 +199,7 @@ def show_student_portal():
             ):
 
                 st.session_state.student_logged_in = False
+
                 st.session_state.student_id = None
 
                 st.rerun()
@@ -212,10 +216,16 @@ def show_student_portal():
 
             if school.school_badge:
 
-                st.image(
-                    school.school_badge,
-                    width=100,
-                )
+                try:
+
+                    st.image(
+                        school.school_badge,
+                        width=100,
+                    )
+
+                except Exception:
+
+                    pass
 
         with header_right:
 
@@ -240,9 +250,11 @@ def show_student_portal():
                     f"📧 {school.email}"
                 )
 
-            st.write(
-                f"📞 {school.phone}"
-            )
+            if school.phone:
+
+                st.write(
+                    f"📞 {school.phone}"
+                )
 
         st.divider()
 
@@ -262,17 +274,19 @@ def show_student_portal():
                 "**Name**"
             )
 
-            st.write(
-                " ".join(
-                    filter(
-                        None,
-                        [
-                            student.first_name,
-                            student.middle_name,
-                            student.last_name,
-                        ],
-                    )
+            student_name = " ".join(
+                filter(
+                    None,
+                    [
+                        student.first_name,
+                        student.middle_name,
+                        student.last_name,
+                    ],
                 )
+            )
+
+            st.write(
+                student_name
             )
 
         with info2:
@@ -296,8 +310,12 @@ def show_student_portal():
             )
 
         # ====================================================
-        # SESSIONS
+        # ACADEMIC SESSIONS
         # ====================================================
+
+        st.subheader(
+            "Academic Session"
+        )
 
         sessions = list(
             db.scalars(
@@ -323,8 +341,12 @@ def show_student_portal():
         )
 
         # ====================================================
-        # TERMS
+        # ACADEMIC TERMS
         # ====================================================
+
+        st.subheader(
+            "Academic Term"
+        )
 
         terms = list(
             db.scalars(
@@ -383,7 +405,7 @@ def show_student_portal():
             return
 
         # ====================================================
-        # APPROVAL CHECK
+        # PRINCIPAL APPROVAL CHECK
         # ====================================================
 
         if not report.principal_approved:
@@ -487,7 +509,7 @@ def show_student_portal():
 
         st.write(
             f"**Student:** "
-            f"{' '.join(filter(None, [student.first_name, student.middle_name, student.last_name]))}"
+            f"{student_name}"
         )
 
         st.write(
@@ -524,7 +546,11 @@ def show_student_portal():
                         result.grade or "",
 
                     "Position":
-                        result.position or "",
+                        (
+                            result.position
+                            if result.position is not None
+                            else ""
+                        ),
                 }
             )
 
@@ -539,7 +565,7 @@ def show_student_portal():
         # ====================================================
 
         total_score = sum(
-            result.total
+            result.total or 0
             for result in results
         )
 
@@ -643,19 +669,13 @@ def show_student_portal():
 
             if report.final_decision:
 
-                if (
-                    report.final_decision
-                    == "PROMOTED"
-                ):
+                if report.final_decision == "PROMOTED":
 
                     st.success(
                         "🎉 PROMOTED"
                     )
 
-                elif (
-                    report.final_decision
-                    == "NOT PROMOTED"
-                ):
+                elif report.final_decision == "NOT PROMOTED":
 
                     st.error(
                         "NOT PROMOTED"
@@ -687,20 +707,9 @@ def show_student_portal():
             st.caption(
                 f"Approved at: {report.approved_at}"
             )
-        
-        if not report["principal_approved"]:
-            st.warning(
-                "Your result has not yet been approved by the Principal."
-            )
-            st.info(
-                "You can view the result after it is released, "
-                "but downloading is disabled until approval."
-            )
-        else:
-        # Your existing download button goes here
 
         # ====================================================
-        # DOWNLOAD
+        # DOWNLOAD RESULT
         # ====================================================
 
         st.divider()
@@ -710,10 +719,7 @@ def show_student_portal():
         )
 
         # ----------------------------------------------------
-        # Build downloadable text report.
-        #
-        # We deliberately do not show this button before
-        # principal approval + publication.
+        # BUILD TEXT REPORT
         # ----------------------------------------------------
 
         lines = []
@@ -722,14 +728,22 @@ def show_student_portal():
             school.name
         )
 
-        lines.append(
-            school.address
-        )
+        if school.address:
+
+            lines.append(
+                school.address
+            )
 
         if school.email:
 
             lines.append(
                 f"Email: {school.email}"
+            )
+
+        if school.phone:
+
+            lines.append(
+                f"Phone: {school.phone}"
             )
 
         lines.append(
@@ -742,13 +756,11 @@ def show_student_portal():
             f"{selected_term.name}"
         )
 
-        lines.append(
-            ""
-        )
+        lines.append("")
 
         lines.append(
             f"Student: "
-            f"{' '.join(filter(None, [student.first_name, student.middle_name, student.last_name]))}"
+            f"{student_name}"
         )
 
         lines.append(
@@ -761,9 +773,7 @@ def show_student_portal():
             f"{student.school_class.name}"
         )
 
-        lines.append(
-            ""
-        )
+        lines.append("")
 
         lines.append(
             "SUBJECT RESULTS"
@@ -787,9 +797,7 @@ def show_student_portal():
                 )
             )
 
-        lines.append(
-            ""
-        )
+        lines.append("")
 
         lines.append(
             f"Total Score: "
@@ -800,6 +808,10 @@ def show_student_portal():
             f"Term Average: "
             f"{average:.2f}"
         )
+
+        # ====================================================
+        # THIRD TERM DOWNLOAD INFORMATION
+        # ====================================================
 
         if selected_term.term_number == 3:
 
@@ -817,9 +829,7 @@ def show_student_portal():
                     f"{report.final_decision}"
                 )
 
-        lines.append(
-            ""
-        )
+        lines.append("")
 
         lines.append(
             f"Teacher's Remark: "
@@ -831,9 +841,7 @@ def show_student_portal():
             f"{report.principal_remark or ''}"
         )
 
-        lines.append(
-            ""
-        )
+        lines.append("")
 
         lines.append(
             "STATUS: APPROVED AND PUBLISHED"
@@ -842,6 +850,10 @@ def show_student_portal():
         report_text = "\n".join(
             lines
         )
+
+        # ====================================================
+        # DOWNLOAD BUTTON
+        # ====================================================
 
         st.download_button(
             label="📥 Download Result",
