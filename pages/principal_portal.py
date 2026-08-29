@@ -5,7 +5,9 @@
 #
 # Principal workflow:
 #
-#   Session
+#   Login
+#      ↓
+#   Academic Session
 #      ↓
 #   Term
 #      ↓
@@ -13,15 +15,23 @@
 #      ↓
 #   Student
 #      ↓
-#   Review complete result
+#   Review Result
 #      ↓
-#   Approve OR Reject
-#
-# Each student is approved individually.
+#   Add Principal Remark
+#      ↓
+#   3rd Term: PASS / FAIL
+#      ↓
+#   Approve
+#      ↓
+#   Publish
+#      ↓
+#   Student Can Download
 #
 # ============================================================
 
 import streamlit as st
+
+from datetime import datetime
 
 from sqlalchemy import select
 
@@ -34,14 +44,9 @@ from database.models import (
     School,
     SchoolClass,
     Student,
+    StudentTermReport,
     Subject,
-)
-
-from services.approval_service import (
-    approve_student_result,
-    reject_student_result,
-    get_approval_status,
-    verify_principal,
+    Teacher,
 )
 
 from services.result_service import (
@@ -52,975 +57,186 @@ from services.result_service import (
 
 
 # ============================================================
-# PAGE CONFIG
+# HELPER
 # ============================================================
 
-st.set_page_config(
-    page_title="Examina AI | Principal Portal",
-    page_icon="🏫",
-    layout="wide",
-)
+def get_or_create_report(
+    db,
+    student_id: int,
+    academic_term_id: int,
+):
+    """
+    Get a student's complete term report.
 
+    If it does not exist, create it.
+    """
 
-# ============================================================
-# DATABASE
-# ============================================================
-
-db = SessionLocal()
-
-
-# ============================================================
-# SESSION STATE
-# ============================================================
-
-if "principal_logged_in" not in st.session_state:
-    st.session_state.principal_logged_in = False
-
-if "principal_id" not in st.session_state:
-    st.session_state.principal_id = None
-
-if "principal_school_id" not in st.session_state:
-    st.session_state.principal_school_id = None
-
-
-# ============================================================
-# DEVELOPMENT LOGIN
-# ============================================================
-#
-# This will later be replaced by proper authentication.
-#
-# ============================================================
-
-if not st.session_state.principal_logged_in:
-
-    st.title("🏫 Examina AI")
-
-    st.subheader(
-        "Principal Portal"
+    report = db.scalar(
+        select(StudentTermReport).where(
+            StudentTermReport.student_id == student_id,
+            StudentTermReport.academic_term_id
+            == academic_term_id,
+        )
     )
 
-    st.info(
-        "Principal authentication is currently "
-        "in development mode."
-    )
+    if report is None:
 
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        principal_id = st.number_input(
-            "Principal ID",
-            min_value=1,
-            step=1,
+        report = StudentTermReport(
+            student_id=student_id,
+            academic_term_id=academic_term_id,
+            principal_approved=False,
+            published=False,
         )
 
-    with col2:
+        db.add(report)
+        db.flush()
 
-        school_id = st.number_input(
-            "School ID",
-            min_value=1,
-            step=1,
-        )
-
-    if st.button(
-        "Enter Principal Portal",
-        type="primary",
-        use_container_width=True,
-    ):
-
-        try:
-
-            principal = verify_principal(
-                db=db,
-                principal_id=principal_id,
-                school_id=school_id,
-            )
-
-            st.session_state.principal_logged_in = True
-
-            st.session_state.principal_id = (
-                principal.id
-            )
-
-            st.session_state.principal_school_id = (
-                principal.school_id
-            )
-
-            st.rerun()
-
-        except Exception as error:
-
-            st.error(
-                str(error)
-            )
-
-    db.close()
-
-    st.stop()
+    return report
 
 
 # ============================================================
-# GET SCHOOL
+# PRINCIPAL VERIFICATION
 # ============================================================
 
-school = db.get(
-    School,
-    st.session_state.principal_school_id,
-)
+def verify_principal(
+    db,
+    principal_id: int,
+    school_id: int,
+):
+    """
+    Verify that the principal belongs to the school
+    and has been verified.
 
-if school is None:
+    For now, Principal is represented by Teacher.
+    """
 
-    st.error(
-        "School account not found."
+    principal = db.get(
+        Teacher,
+        principal_id,
     )
 
-    db.close()
+    if principal is None:
+        raise ValueError(
+            "Principal account not found."
+        )
 
-    st.stop()
+    if principal.school_id != school_id:
+        raise PermissionError(
+            "This principal does not belong to this school."
+        )
+
+    if not principal.verified:
+        raise PermissionError(
+            "Principal account has not been verified."
+        )
+
+    return principal
 
 
 # ============================================================
-# SIDEBAR
+# MAIN PORTAL
 # ============================================================
 
-with st.sidebar:
+def show_principal_portal():
 
-    st.title("Examina AI")
+    # ========================================================
+    # PAGE TITLE
+    # ========================================================
+
+    st.title("🏫 Principal Portal")
 
     st.caption(
-        "Principal Portal"
+        "Review, approve and publish student results."
     )
 
-    st.divider()
+    # ========================================================
+    # DATABASE
+    # ========================================================
 
-    if st.button(
-        "Logout",
-        use_container_width=True,
-    ):
+    db = SessionLocal()
 
-        st.session_state.principal_logged_in = False
+    try:
 
-        st.session_state.principal_id = None
+        # ====================================================
+        # SESSION STATE
+        # ====================================================
 
-        st.session_state.principal_school_id = None
+        if "principal_logged_in" not in st.session_state:
+            st.session_state.principal_logged_in = False
 
-        st.rerun()
+        if "principal_id" not in st.session_state:
+            st.session_state.principal_id = None
 
+        if "principal_school_id" not in st.session_state:
+            st.session_state.principal_school_id = None
 
-# ============================================================
-# SCHOOL HEADER
-# ============================================================
+        # ====================================================
+        # DEVELOPMENT LOGIN
+        # ====================================================
+        #
+        # Later this will be replaced with proper
+        # authentication.
+        #
+        # ====================================================
 
-header_left, header_right = st.columns(
-    [1, 5]
-)
+        if not st.session_state.principal_logged_in:
 
-with header_left:
-
-    if school.school_badge:
-
-        st.image(
-            school.school_badge,
-            width=110,
-        )
-
-
-with header_right:
-
-    st.title(
-        school.name
-    )
-
-    st.write(
-        f"{school.local_government}, "
-        f"{school.state}"
-    )
-
-    if school.address:
-
-        st.write(
-            f"📍 {school.address}"
-        )
-
-    if school.email:
-
-        st.write(
-            f"📧 {school.email}"
-        )
-
-    st.write(
-        f"📞 {school.phone}"
-    )
-
-
-st.divider()
-
-
-# ============================================================
-# ACADEMIC SESSION
-# ============================================================
-
-st.subheader(
-    "1. Select Academic Session"
-)
-
-session_query = (
-    select(AcademicSession)
-    .order_by(
-        AcademicSession.name.desc()
-    )
-)
-
-sessions = list(
-    db.scalars(
-        session_query
-    ).all()
-)
-
-
-if not sessions:
-
-    st.warning(
-        "No academic sessions available."
-    )
-
-    db.close()
-
-    st.stop()
-
-
-selected_session = st.selectbox(
-    "Academic Session",
-    sessions,
-    format_func=lambda item:
-        item.name,
-)
-
-
-# ============================================================
-# TERM
-# ============================================================
-
-st.subheader(
-    "2. Select Term"
-)
-
-term_query = (
-    select(AcademicTerm)
-    .where(
-        AcademicTerm.academic_session_id
-        == selected_session.id
-    )
-    .order_by(
-        AcademicTerm.id
-    )
-)
-
-terms = list(
-    db.scalars(
-        term_query
-    ).all()
-)
-
-
-if not terms:
-
-    st.warning(
-        "No terms exist for this session."
-    )
-
-    db.close()
-
-    st.stop()
-
-
-selected_term = st.selectbox(
-    "Term",
-    terms,
-    format_func=lambda item:
-        item.name,
-)
-
-
-# ============================================================
-# CLASS
-# ============================================================
-
-st.subheader(
-    "3. Select Class"
-)
-
-class_query = (
-    select(SchoolClass)
-    .where(
-        SchoolClass.school_id
-        == school.id
-    )
-    .order_by(
-        SchoolClass.name
-    )
-)
-
-classes = list(
-    db.scalars(
-        class_query
-    ).all()
-)
-
-
-if not classes:
-
-    st.warning(
-        "No classes have been registered."
-    )
-
-    db.close()
-
-    st.stop()
-
-
-selected_class = st.selectbox(
-    "Class",
-    classes,
-    format_func=lambda item:
-        item.name,
-)
-
-
-st.divider()
-
-
-# ============================================================
-# GET STUDENTS
-# ============================================================
-
-student_query = (
-    select(Student)
-    .where(
-        Student.school_id == school.id,
-        Student.class_id == selected_class.id,
-        Student.active == True,
-    )
-    .order_by(
-        Student.last_name,
-        Student.first_name,
-    )
-)
-
-students = list(
-    db.scalars(
-        student_query
-    ).all()
-)
-
-
-# ============================================================
-# CLASS SUMMARY
-# ============================================================
-
-approved_count = 0
-pending_count = 0
-no_result_count = 0
-
-
-for student in students:
-
-    status = get_approval_status(
-        db=db,
-        student_id=student.id,
-        academic_term_id=selected_term.id,
-    )
-
-    if not status["has_results"]:
-
-        no_result_count += 1
-
-    elif status["approved"]:
-
-        approved_count += 1
-
-    else:
-
-        pending_count += 1
-
-
-st.subheader(
-    f"{selected_class.name} • "
-    f"{selected_term.name}"
-)
-
-
-stat1, stat2, stat3, stat4 = st.columns(4)
-
-with stat1:
-
-    st.metric(
-        "Students",
-        len(students),
-    )
-
-with stat2:
-
-    st.metric(
-        "Approved",
-        approved_count,
-    )
-
-with stat3:
-
-    st.metric(
-        "Pending",
-        pending_count,
-    )
-
-with stat4:
-
-    st.metric(
-        "No Results",
-        no_result_count,
-    )
-
-
-st.divider()
-
-
-# ============================================================
-# STUDENT LIST
-# ============================================================
-
-st.subheader(
-    "4. Select Student to Review"
-)
-
-
-if not students:
-
-    st.info(
-        "No active students found in this class."
-    )
-
-    db.close()
-
-    st.stop()
-
-
-student_options = {
-    (
-        f"{student.last_name}, "
-        f"{student.first_name}"
-        + (
-            f" {student.middle_name}"
-            if student.middle_name
-            else ""
-        )
-        + f" — {student.admission_number}"
-    ): student
-    for student in students
-}
-
-
-selected_student_label = st.selectbox(
-    "Student",
-    list(student_options.keys()),
-)
-
-
-selected_student = student_options[
-    selected_student_label
-]
-
-
-st.divider()
-
-
-# ============================================================
-# STUDENT INFORMATION
-# ============================================================
-
-st.subheader(
-    "Student Information"
-)
-
-
-student_col1, student_col2, student_col3 = st.columns(
-    3
-)
-
-
-with student_col1:
-
-    st.write(
-        "**Name**"
-    )
-
-    st.write(
-        " ".join(
-            filter(
-                None,
-                [
-                    selected_student.first_name,
-                    selected_student.middle_name,
-                    selected_student.last_name,
-                ],
+            st.subheader(
+                "Principal Login"
             )
-        )
-    )
 
+            st.info(
+                "Development login: enter the verified "
+                "teacher ID being used as the principal "
+                "and the school ID."
+            )
 
-with student_col2:
+            col1, col2 = st.columns(2)
 
-    st.write(
-        "**Admission Number**"
-    )
+            with col1:
 
-    st.write(
-        selected_student.admission_number
-    )
-
-
-with student_col3:
-
-    st.write(
-        "**Class**"
-    )
-
-    st.write(
-        selected_student.school_class.name
-    )
-
-
-# ============================================================
-# APPROVAL STATUS
-# ============================================================
-
-status = get_approval_status(
-    db=db,
-    student_id=selected_student.id,
-    academic_term_id=selected_term.id,
-)
-
-
-if not status["has_results"]:
-
-    st.error(
-        "This student has no results for "
-        f"{selected_term.name}."
-    )
-
-    db.close()
-
-    st.stop()
-
-
-if status["approved"]:
-
-    st.success(
-        "✅ THIS RESULT HAS BEEN APPROVED"
-    )
-
-else:
-
-    st.warning(
-        "⏳ THIS RESULT IS WAITING FOR "
-        "PRINCIPAL APPROVAL"
-    )
-
-
-# ============================================================
-# GET RESULTS
-# ============================================================
-
-result_query = (
-    select(Result)
-    .join(
-        Subject,
-        Result.subject_id == Subject.id,
-    )
-    .where(
-        Result.student_id
-        == selected_student.id,
-
-        Result.academic_term_id
-        == selected_term.id,
-    )
-    .order_by(
-        Subject.name
-    )
-)
-
-results = list(
-    db.scalars(
-        result_query
-    ).all()
-)
-
-
-# ============================================================
-# RESULT TABLE
-# ============================================================
-
-st.subheader(
-    "Student Result"
-)
-
-
-result_rows = []
-
-
-for result in results:
-
-    result_rows.append(
-        {
-            "Subject":
-                result.subject.name,
-
-            "1st Test":
-                result.first_test,
-
-            "2nd Test":
-                result.second_test,
-
-            "Exam":
-                result.exam,
-
-            "Total":
-                result.total,
-
-            "Grade":
-                result.grade or "",
-
-            "Position":
-                result.position or "",
-        }
-    )
-
-
-if result_rows:
-
-    st.dataframe(
-        result_rows,
-        use_container_width=True,
-        hide_index=True,
-    )
-
-
-# ============================================================
-# TERM SUMMARY
-# ============================================================
-
-average = calculate_student_average(
-    db=db,
-    student_id=selected_student.id,
-    academic_term_id=selected_term.id,
-)
-
-
-rankings = calculate_overall_positions(
-    db=db,
-    school_id=school.id,
-    class_id=selected_class.id,
-    academic_term_id=selected_term.id,
-)
-
-
-overall_position = None
-
-
-for item in rankings:
-
-    if item["student"].id == selected_student.id:
-
-        overall_position = item["position"]
-
-        break
-
-
-summary1, summary2, summary3 = st.columns(3)
-
-
-with summary1:
-
-    st.metric(
-        "Term Average",
-        f"{average:.2f}",
-    )
-
-
-with summary2:
-
-    if overall_position:
-
-        st.metric(
-            "Overall Position",
-            f"{overall_position}",
-        )
-
-    else:
-
-        st.metric(
-            "Overall Position",
-            "N/A",
-        )
-
-
-with summary3:
-
-    st.metric(
-        "Subjects",
-        len(results),
-    )
-
-
-# ============================================================
-# YEAR AVERAGE
-# ============================================================
-
-if selected_term.name == "3rd Term":
-
-    st.divider()
-
-    st.subheader(
-        "Annual Performance"
-    )
-
-    year_average = calculate_year_average(
-        db=db,
-        student_id=selected_student.id,
-        academic_session_id=
-            selected_session.id,
-    )
-
-    if year_average is not None:
-
-        st.metric(
-            "Year Average",
-            f"{year_average:.2f}",
-        )
-
-    else:
-
-        st.warning(
-            "Year average cannot be calculated "
-            "until all three term results are available."
-        )
-
-
-# ============================================================
-# TEACHER'S REMARK
-# ============================================================
-
-st.divider()
-
-st.subheader(
-    "Teacher's Remark"
-)
-
-
-teacher_remarks = []
-
-for result in results:
-
-    # The current Result model does not yet contain
-    # a teacher_remark field.
-    #
-    # This section is reserved for the teacher remark
-    # once that field is added.
-
-    pass
-
-
-st.info(
-    "Teacher's remark will appear here after the "
-    "teacher remark field is connected."
-)
-
-
-# ============================================================
-# PRINCIPAL REMARK
-# ============================================================
-
-st.subheader(
-    "Principal's Remark"
-)
-
-
-existing_principal_remark = None
-
-for result in results:
-
-    if result.principal_remark:
-
-        existing_principal_remark = (
-            result.principal_remark
-        )
-
-        break
-
-
-principal_remark = st.text_area(
-    "Enter principal's remark",
-    value=existing_principal_remark or "",
-    key=(
-        f"principal_remark_"
-        f"{selected_student.id}_"
-        f"{selected_term.id}"
-    ),
-    height=120,
-    disabled=status["approved"],
-)
-
-
-# ============================================================
-# 3RD TERM PASS / FAIL
-# ============================================================
-#
-# This is displayed only for 3rd Term.
-#
-# The final database field for PASS/FAIL will be added
-# to the report/approval model.
-#
-# ============================================================
-
-if selected_term.name == "3rd Term":
-
-    st.subheader(
-        "Final Academic Decision"
-    )
-
-    if status["approved"]:
-
-        st.info(
-            "The final decision has already been approved."
-        )
-
-    else:
-
-        final_decision = st.radio(
-            "Principal's Decision",
-            [
-                "PASS",
-                "FAIL",
-            ],
-            horizontal=True,
-            key=(
-                f"decision_"
-                f"{selected_student.id}_"
-                f"{selected_term.id}"
-            ),
-        )
-
-        st.caption(
-            "The final PASS/FAIL decision will be "
-            "stored with the approved 3rd-term report."
-        )
-
-
-# ============================================================
-# APPROVAL ACTIONS
-# ============================================================
-
-st.divider()
-
-st.subheader(
-    "Principal Decision"
-)
-
-
-if status["approved"]:
-
-    st.success(
-        "🔒 Result locked after approval."
-    )
-
-    st.caption(
-        "Students can download this result "
-        "after approval."
-    )
-
-else:
-
-    approve_col, reject_col = st.columns(2)
-
-    # --------------------------------------------------------
-    # APPROVE
-    # --------------------------------------------------------
-
-    with approve_col:
-
-        if st.button(
-            "✅ APPROVE THIS STUDENT RESULT",
-            type="primary",
-            use_container_width=True,
-        ):
-
-            try:
-
-                approve_student_result(
-                    db=db,
-                    student_id=
-                        selected_student.id,
-
-                    academic_term_id=
-                        selected_term.id,
-
-                    principal_id=
-                        st.session_state.principal_id,
-
-                    principal_remark=
-                        principal_remark,
+                principal_id = st.number_input(
+                    "Principal ID",
+                    min_value=1,
+                    step=1,
+                    value=1,
                 )
 
-                st.success(
-                    "Student result approved successfully."
+            with col2:
+
+                school_id = st.number_input(
+                    "School ID",
+                    min_value=1,
+                    step=1,
+                    value=1,
                 )
 
-                st.rerun()
-
-            except Exception as error:
-
-                st.error(
-                    str(error)
-                )
-
-    # --------------------------------------------------------
-    # REJECT
-    # --------------------------------------------------------
-
-    with reject_col:
-
-        if st.button(
-            "❌ REJECT THIS STUDENT RESULT",
-            use_container_width=True,
-        ):
-
-            if not principal_remark.strip():
-
-                st.error(
-                    "A reason is required when rejecting "
-                    "a result."
-                )
-
-            else:
+            if st.button(
+                "Enter Principal Portal",
+                type="primary",
+                use_container_width=True,
+            ):
 
                 try:
 
-                    reject_student_result(
+                    principal = verify_principal(
                         db=db,
-                        student_id=
-                            selected_student.id,
-
-                        academic_term_id=
-                            selected_term.id,
-
-                        principal_id=
-                            st.session_state.principal_id,
-
-                        principal_remark=
-                            principal_remark,
+                        principal_id=int(
+                            principal_id
+                        ),
+                        school_id=int(
+                            school_id
+                        ),
                     )
 
-                    st.warning(
-                        "Student result rejected."
+                    st.session_state.principal_logged_in = True
+
+                    st.session_state.principal_id = (
+                        principal.id
+                    )
+
+                    st.session_state.principal_school_id = (
+                        principal.school_id
                     )
 
                     st.rerun()
@@ -1031,80 +247,1000 @@ else:
                         str(error)
                     )
 
+            return
 
-# ============================================================
-# APPROVAL INFORMATION
-# ============================================================
+        # ====================================================
+        # GET PRINCIPAL
+        # ====================================================
 
-if status["approved"]:
+        principal = db.get(
+            Teacher,
+            st.session_state.principal_id,
+        )
 
-    st.divider()
+        if principal is None:
 
-    st.subheader(
-        "Approval Information"
-    )
-
-    approval_col1, approval_col2 = st.columns(2)
-
-    approved_at = None
-
-    principal_name = None
-
-    for result in results:
-
-        if result.principal_approved:
-
-            approved_at = (
-                result.principal_approved_at
+            st.error(
+                "Principal account not found."
             )
 
-            if result.principal_id:
+            st.session_state.principal_logged_in = False
 
-                principal = db.get(
-                    __import__(
-                        "database.models",
-                        fromlist=["Teacher"],
-                    ).Teacher,
-                    result.principal_id,
+            return
+
+        # ====================================================
+        # GET SCHOOL
+        # ====================================================
+
+        school = db.get(
+            School,
+            st.session_state.principal_school_id,
+        )
+
+        if school is None:
+
+            st.error(
+                "School account not found."
+            )
+
+            return
+
+        # ====================================================
+        # SIDEBAR
+        # ====================================================
+
+        with st.sidebar:
+
+            st.title("Examina AI")
+
+            st.caption(
+                "Principal Portal"
+            )
+
+            st.divider()
+
+            st.write(
+                f"**Principal:** "
+                f"{principal.first_name} "
+                f"{principal.last_name}"
+            )
+
+            st.write(
+                f"**School:** {school.name}"
+            )
+
+            st.divider()
+
+            if st.button(
+                "Logout",
+                use_container_width=True,
+            ):
+
+                st.session_state.principal_logged_in = False
+                st.session_state.principal_id = None
+                st.session_state.principal_school_id = None
+
+                st.rerun()
+
+        # ====================================================
+        # SCHOOL HEADER
+        # ====================================================
+
+        header_left, header_right = st.columns(
+            [1, 5]
+        )
+
+        with header_left:
+
+            if school.school_badge:
+
+                st.image(
+                    school.school_badge,
+                    width=110,
                 )
 
-                if principal:
+        with header_right:
 
-                    principal_name = (
-                        f"{principal.first_name} "
-                        f"{principal.last_name}"
+            st.title(
+                school.name
+            )
+
+            st.write(
+                f"{school.local_government}, "
+                f"{school.state}"
+            )
+
+            if school.address:
+
+                st.write(
+                    f"📍 {school.address}"
+                )
+
+            if school.email:
+
+                st.write(
+                    f"📧 {school.email}"
+                )
+
+            st.write(
+                f"📞 {school.phone}"
+            )
+
+        st.divider()
+
+        # ====================================================
+        # SESSION
+        # ====================================================
+
+        st.subheader(
+            "1. Select Academic Session"
+        )
+
+        sessions = list(
+            db.scalars(
+                select(AcademicSession)
+                .order_by(
+                    AcademicSession.name.desc()
+                )
+            ).all()
+        )
+
+        if not sessions:
+
+            st.warning(
+                "No academic sessions available."
+            )
+
+            return
+
+        selected_session = st.selectbox(
+            "Academic Session",
+            sessions,
+            format_func=lambda item: item.name,
+        )
+
+        # ====================================================
+        # TERM
+        # ====================================================
+
+        st.subheader(
+            "2. Select Term"
+        )
+
+        terms = list(
+            db.scalars(
+                select(AcademicTerm)
+                .where(
+                    AcademicTerm.academic_session_id
+                    == selected_session.id
+                )
+                .order_by(
+                    AcademicTerm.term_number
+                )
+            ).all()
+        )
+
+        if not terms:
+
+            st.warning(
+                "No terms exist for this academic session."
+            )
+
+            return
+
+        selected_term = st.selectbox(
+            "Academic Term",
+            terms,
+            format_func=lambda item: item.name,
+        )
+
+        # ====================================================
+        # CLASS
+        # ====================================================
+
+        st.subheader(
+            "3. Select Class"
+        )
+
+        classes = list(
+            db.scalars(
+                select(SchoolClass)
+                .where(
+                    SchoolClass.school_id
+                    == school.id
+                )
+                .order_by(
+                    SchoolClass.name
+                )
+            ).all()
+        )
+
+        if not classes:
+
+            st.warning(
+                "No classes have been registered."
+            )
+
+            return
+
+        selected_class = st.selectbox(
+            "Class",
+            classes,
+            format_func=lambda item: item.name,
+        )
+
+        # ====================================================
+        # STUDENTS
+        # ====================================================
+
+        students = list(
+            db.scalars(
+                select(Student)
+                .where(
+                    Student.school_id
+                    == school.id,
+
+                    Student.class_id
+                    == selected_class.id,
+
+                    Student.active
+                    == True,
+                )
+                .order_by(
+                    Student.last_name,
+                    Student.first_name,
+                )
+            ).all()
+        )
+
+        if not students:
+
+            st.info(
+                "No active students are registered "
+                "in this class."
+            )
+
+            return
+
+        # ====================================================
+        # CLASS SUMMARY
+        # ====================================================
+
+        approved_count = 0
+        published_count = 0
+        pending_count = 0
+        no_result_count = 0
+
+        for student in students:
+
+            report = db.scalar(
+                select(StudentTermReport)
+                .where(
+                    StudentTermReport.student_id
+                    == student.id,
+
+                    StudentTermReport.academic_term_id
+                    == selected_term.id,
+                )
+            )
+
+            result_exists = db.scalar(
+                select(Result.id)
+                .where(
+                    Result.student_id
+                    == student.id,
+
+                    Result.academic_term_id
+                    == selected_term.id,
+                )
+            )
+
+            if result_exists is None:
+
+                no_result_count += 1
+
+            elif report and report.principal_approved:
+
+                approved_count += 1
+
+                if report.published:
+                    published_count += 1
+
+            else:
+
+                pending_count += 1
+
+        st.divider()
+
+        st.subheader(
+            f"{selected_class.name} • "
+            f"{selected_term.name}"
+        )
+
+        stat1, stat2, stat3, stat4 = st.columns(4)
+
+        with stat1:
+
+            st.metric(
+                "Students",
+                len(students),
+            )
+
+        with stat2:
+
+            st.metric(
+                "Approved",
+                approved_count,
+            )
+
+        with stat3:
+
+            st.metric(
+                "Pending",
+                pending_count,
+            )
+
+        with stat4:
+
+            st.metric(
+                "Published",
+                published_count,
+            )
+
+        # ====================================================
+        # STUDENT
+        # ====================================================
+
+        st.divider()
+
+        st.subheader(
+            "4. Select Student"
+        )
+
+        student_options = {}
+
+        for student in students:
+
+            full_name = " ".join(
+                filter(
+                    None,
+                    [
+                        student.first_name,
+                        student.middle_name,
+                        student.last_name,
+                    ],
+                )
+            )
+
+            label = (
+                f"{student.last_name}, "
+                f"{full_name} "
+                f"— {student.admission_number}"
+            )
+
+            student_options[label] = student
+
+        selected_student_label = st.selectbox(
+            "Student",
+            list(student_options.keys()),
+        )
+
+        selected_student = student_options[
+            selected_student_label
+        ]
+
+        # ====================================================
+        # STUDENT INFORMATION
+        # ====================================================
+
+        st.divider()
+
+        st.subheader(
+            "Student Information"
+        )
+
+        info1, info2, info3 = st.columns(3)
+
+        with info1:
+
+            st.write(
+                "**Student**"
+            )
+
+            st.write(
+                " ".join(
+                    filter(
+                        None,
+                        [
+                            selected_student.first_name,
+                            selected_student.middle_name,
+                            selected_student.last_name,
+                        ],
+                    )
+                )
+            )
+
+        with info2:
+
+            st.write(
+                "**Admission Number**"
+            )
+
+            st.write(
+                selected_student.admission_number
+            )
+
+        with info3:
+
+            st.write(
+                "**Class**"
+            )
+
+            st.write(
+                selected_student.school_class.name
+            )
+
+        # ====================================================
+        # GET RESULTS
+        # ====================================================
+
+        results = list(
+            db.scalars(
+                select(Result)
+                .join(
+                    Subject,
+                    Result.subject_id
+                    == Subject.id,
+                )
+                .where(
+                    Result.student_id
+                    == selected_student.id,
+
+                    Result.academic_term_id
+                    == selected_term.id,
+                )
+                .order_by(
+                    Subject.name
+                )
+            ).all()
+        )
+
+        if not results:
+
+            st.warning(
+                "This student has no results for "
+                f"{selected_term.name}."
+            )
+
+            return
+
+        # ====================================================
+        # GET REPORT
+        # ====================================================
+
+        report = get_or_create_report(
+            db=db,
+            student_id=selected_student.id,
+            academic_term_id=selected_term.id,
+        )
+
+        db.commit()
+
+        # ====================================================
+        # APPROVAL STATUS
+        # ====================================================
+
+        if report.principal_approved:
+
+            if report.published:
+
+                st.success(
+                    "✅ APPROVED AND PUBLISHED"
+                )
+
+            else:
+
+                st.success(
+                    "✅ APPROVED"
+                )
+
+                st.warning(
+                    "The report has been approved but "
+                    "is not yet published."
+                )
+
+        else:
+
+            st.warning(
+                "⏳ RESULT AWAITING PRINCIPAL APPROVAL"
+            )
+
+        # ====================================================
+        # RESULT TABLE
+        # ====================================================
+
+        st.subheader(
+            "Student Result"
+        )
+
+        result_rows = []
+
+        for result in results:
+
+            result_rows.append(
+                {
+                    "Subject":
+                        result.subject.name,
+
+                    "1st Test":
+                        result.first_test,
+
+                    "2nd Test":
+                        result.second_test,
+
+                    "Exam":
+                        result.exam,
+
+                    "Total":
+                        result.total,
+
+                    "Grade":
+                        result.grade or "",
+
+                    "Position":
+                        result.position or "",
+                }
+            )
+
+        st.dataframe(
+            result_rows,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        # ====================================================
+        # TERM AVERAGE
+        # ====================================================
+
+        average = calculate_student_average(
+            db=db,
+            student_id=selected_student.id,
+            academic_term_id=selected_term.id,
+        )
+
+        rankings = calculate_overall_positions(
+            db=db,
+            school_id=school.id,
+            class_id=selected_class.id,
+            academic_term_id=selected_term.id,
+        )
+
+        overall_position = None
+
+        for item in rankings:
+
+            if (
+                item["student"].id
+                == selected_student.id
+            ):
+
+                overall_position = item[
+                    "position"
+                ]
+
+                break
+
+        summary1, summary2, summary3 = st.columns(3)
+
+        with summary1:
+
+            st.metric(
+                "Term Average",
+                f"{average:.2f}",
+            )
+
+        with summary2:
+
+            st.metric(
+                "Overall Position",
+                (
+                    str(overall_position)
+                    if overall_position
+                    else "N/A"
+                ),
+            )
+
+        with summary3:
+
+            st.metric(
+                "Subjects",
+                len(results),
+            )
+
+        # ====================================================
+        # 3RD TERM YEAR AVERAGE
+        # ====================================================
+
+        if selected_term.term_number == 3:
+
+            st.divider()
+
+            st.subheader(
+                "Annual Performance"
+            )
+
+            year_average = calculate_year_average(
+                db=db,
+                student_id=selected_student.id,
+                academic_session_id=selected_session.id,
+            )
+
+            if year_average is None:
+
+                st.warning(
+                    "Year average cannot be calculated "
+                    "until results for all three terms "
+                    "are available."
+                )
+
+            else:
+
+                st.metric(
+                    "Year Average",
+                    f"{year_average:.2f}",
+                )
+
+                # Save calculated year average
+                # to the report.
+
+                report.year_average = (
+                    year_average
+                )
+
+                db.commit()
+
+        # ====================================================
+        # TEACHER'S REMARK
+        # ====================================================
+
+        st.divider()
+
+        st.subheader(
+            "Teacher's Remark"
+        )
+
+        if report.teachers_remark:
+
+            st.info(
+                report.teachers_remark
+            )
+
+        else:
+
+            st.info(
+                "No teacher's remark has been entered."
+            )
+
+        # ====================================================
+        # PRINCIPAL'S REMARK
+        # ====================================================
+
+        st.subheader(
+            "Principal's Remark"
+        )
+
+        principal_remark = st.text_area(
+            "Principal's Remark",
+            value=(
+                report.principal_remark
+                or ""
+            ),
+            height=120,
+            disabled=report.principal_approved,
+            key=(
+                f"principal_remark_"
+                f"{selected_student.id}_"
+                f"{selected_term.id}"
+            ),
+        )
+
+        # ====================================================
+        # FINAL DECISION
+        # ====================================================
+
+        final_decision = None
+
+        if selected_term.term_number == 3:
+
+            st.subheader(
+                "Final Academic Decision"
+            )
+
+            if report.final_decision:
+
+                st.info(
+                    f"Current Decision: "
+                    f"**{report.final_decision}**"
+                )
+
+            if not report.principal_approved:
+
+                final_decision = st.radio(
+                    "Student's Final Decision",
+                    [
+                        "PROMOTED",
+                        "NOT PROMOTED",
+                    ],
+                    horizontal=True,
+                    key=(
+                        f"final_decision_"
+                        f"{selected_student.id}_"
+                        f"{selected_term.id}"
+                    ),
+                )
+
+        # ====================================================
+        # APPROVAL ACTIONS
+        # ====================================================
+
+        st.divider()
+
+        st.subheader(
+            "Principal Decision"
+        )
+
+        if report.principal_approved:
+
+            st.success(
+                "🔒 This student's report has been approved."
+            )
+
+            if report.approved_at:
+
+                st.caption(
+                    "Approved at: "
+                    f"{report.approved_at}"
+                )
+
+            # ----------------------------------------------
+            # PUBLISH
+            # ----------------------------------------------
+
+            if not report.published:
+
+                if st.button(
+                    "📢 Publish Result",
+                    type="primary",
+                    use_container_width=True,
+                ):
+
+                    report.published = True
+
+                    db.commit()
+
+                    st.success(
+                        "Result published successfully."
                     )
 
-            break
+                    st.rerun()
 
-    with approval_col1:
+            else:
 
-        st.write(
-            "**Approved By**"
-        )
+                st.success(
+                    "📢 Result is published."
+                )
 
-        st.write(
-            principal_name
-            or "Principal"
-        )
+        else:
 
-    with approval_col2:
+            approve_col, reject_col = st.columns(2)
 
-        st.write(
-            "**Approved At**"
-        )
+            # ----------------------------------------------
+            # APPROVE
+            # ----------------------------------------------
 
-        st.write(
-            str(
-                approved_at
+            with approve_col:
+
+                if st.button(
+                    "✅ APPROVE RESULT",
+                    type="primary",
+                    use_container_width=True,
+                ):
+
+                    try:
+
+                        # 3rd Term must have a decision
+                        if (
+                            selected_term.term_number == 3
+                            and final_decision is None
+                        ):
+
+                            st.error(
+                                "A final promotion decision "
+                                "is required for 3rd Term."
+                            )
+
+                        else:
+
+                            report.principal_remark = (
+                                principal_remark.strip()
+                                or None
+                            )
+
+                            if (
+                                selected_term.term_number
+                                == 3
+                            ):
+
+                                report.final_decision = (
+                                    final_decision
+                                )
+
+                                # Make sure the latest
+                                # year average is stored.
+
+                                year_average = (
+                                    calculate_year_average(
+                                        db=db,
+                                        student_id=(
+                                            selected_student.id
+                                        ),
+                                        academic_session_id=(
+                                            selected_session.id
+                                        ),
+                                    )
+                                )
+
+                                if year_average is None:
+
+                                    st.error(
+                                        "All three term results "
+                                        "are required before "
+                                        "approving the 3rd Term."
+                                    )
+
+                                    db.rollback()
+
+                                    st.stop()
+
+                                report.year_average = (
+                                    year_average
+                                )
+
+                            else:
+
+                                report.final_decision = None
+                                report.year_average = None
+
+                            report.principal_approved = True
+
+                            report.principal_id = (
+                                st.session_state.principal_id
+                            )
+
+                            report.approved_at = (
+                                datetime.utcnow()
+                            )
+
+                            # Approval does NOT automatically
+                            # publish the report.
+
+                            report.published = False
+
+                            db.commit()
+
+                            st.success(
+                                "Student result approved successfully."
+                            )
+
+                            st.rerun()
+
+                    except Exception as error:
+
+                        db.rollback()
+
+                        st.error(
+                            f"Could not approve result: {error}"
+                        )
+
+            # ----------------------------------------------
+            # REJECT
+            # ----------------------------------------------
+
+            with reject_col:
+
+                if st.button(
+                    "❌ REJECT RESULT",
+                    use_container_width=True,
+                ):
+
+                    if not principal_remark.strip():
+
+                        st.error(
+                            "A principal's remark is required "
+                            "when rejecting a result."
+                        )
+
+                    else:
+
+                        report.principal_remark = (
+                            principal_remark.strip()
+                        )
+
+                        report.principal_approved = False
+
+                        report.published = False
+
+                        report.principal_id = (
+                            st.session_state.principal_id
+                        )
+
+                        report.approved_at = None
+
+                        db.commit()
+
+                        st.warning(
+                            "Result rejected and returned "
+                            "for correction."
+                        )
+
+                        st.rerun()
+
+        # ====================================================
+        # APPROVAL INFORMATION
+        # ====================================================
+
+        if report.principal_approved:
+
+            st.divider()
+
+            st.subheader(
+                "Approval Information"
             )
-            if approved_at
-            else "N/A"
-        )
 
+            approved_principal = None
 
-# ============================================================
-# CLOSE DATABASE
-# ============================================================
+            if report.principal_id:
 
-db.close()
+                approved_principal = db.get(
+                    Teacher,
+                    report.principal_id,
+                )
+
+            approval_col1, approval_col2 = st.columns(2)
+
+            with approval_col1:
+
+                st.write(
+                    "**Approved By**"
+                )
+
+                if approved_principal:
+
+                    st.write(
+                        f"{approved_principal.first_name} "
+                        f"{approved_principal.last_name}"
+                    )
+
+                else:
+
+                    st.write(
+                        "Principal"
+                    )
+
+            with approval_col2:
+
+                st.write(
+                    "**Approved At**"
+                )
+
+                st.write(
+                    str(
+                        report.approved_at
+                    )
+                    if report.approved_at
+                    else "N/A"
+                )
+
+    finally:
+
+        db.close()
