@@ -465,7 +465,6 @@ def assign_subject_to_student(
 # ============================================================
 # GET STUDENT SUBJECTS FOR A TERM
 # ============================================================
-
 def get_student_subjects(
     db: Session,
     student_id: int,
@@ -477,17 +476,21 @@ def get_student_subjects(
 
     query = (
         select(StudentSubject)
+        .join(
+            Subject,
+            StudentSubject.subject_id == Subject.id,
+        )
         .where(
             StudentSubject.student_id == student_id,
             StudentSubject.academic_term_id == academic_term_id,
         )
-        .order_by(Subject.name)
+        .order_by(
+            Subject.name
+        )
     )
 
     return list(
-        db.scalars(
-            query
-        ).all()
+        db.scalars(query).all()
     )
 
 
