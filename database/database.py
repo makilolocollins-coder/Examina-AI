@@ -1,5 +1,4 @@
 # ============================================================
-# ============================================================
 # EXAMINA AI
 # DATABASE CONNECTION
 # ============================================================
@@ -7,19 +6,25 @@
 from pathlib import Path
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 
+# Import Base
 from database.models import Base
 
-# Import models so SQLAlchemy registers every table
-from database import models
+# Import all models so SQLAlchemy registers every table
+from database import models  # noqa: F401
+
+
+# ============================================================
+# PROJECT DIRECTORY
+# ============================================================
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # ============================================================
 # DATABASE DIRECTORY
 # ============================================================
-
-BASE_DIR = Path(__file__).resolve().parent.parent
 
 DATABASE_DIR = BASE_DIR / "data"
 
@@ -30,7 +35,7 @@ DATABASE_DIR.mkdir(
 
 
 # ============================================================
-# DATABASE FILE
+# SQLITE DATABASE FILE
 # ============================================================
 
 DATABASE_PATH = DATABASE_DIR / "examina.db"
@@ -68,14 +73,19 @@ SessionLocal = sessionmaker(
 
 
 # ============================================================
-# CREATE DATABASE TABLES
+# CREATE ALL DATABASE TABLES
 # ============================================================
 
-def create_database():
+def create_database() -> None:
     """
-    Create all Examinа AI database tables.
+    Create all Examina AI database tables.
 
-    Tables are defined in database/models.py.
+    The table definitions are contained in:
+
+        database/models.py
+
+    If the database already exists, existing tables
+    are not deleted.
     """
 
     Base.metadata.create_all(
@@ -89,13 +99,12 @@ def create_database():
 
 def get_db():
     """
-    Create a database session.
+    Provide a SQLAlchemy database session.
 
-    The session is automatically closed
-    after use.
+    The session is automatically closed after use.
     """
 
-    db = SessionLocal()
+    db: Session = SessionLocal()
 
     try:
         yield db
@@ -108,18 +117,33 @@ def get_db():
 # INITIALIZE DATABASE
 # ============================================================
 
+def initialize_database() -> None:
+    """
+    Initialize the Examina AI SQLite database.
+    """
+
+    create_database()
+
+
+# ============================================================
+# DIRECT EXECUTION
+# ============================================================
+
 if __name__ == "__main__":
 
     print("=" * 70)
     print("EXAMINA AI DATABASE")
     print("=" * 70)
 
+    print()
     print("Database location:")
     print(DATABASE_PATH)
 
-    create_database()
-
     print()
+
+    initialize_database()
+
     print("Database initialized successfully.")
     print("All tables are ready.")
+
     print("=" * 70)
