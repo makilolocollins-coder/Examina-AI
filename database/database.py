@@ -1,63 +1,37 @@
-# ============================================================
-# EXAMINA AI
-# DATABASE CONNECTION
-# ============================================================
-
-from pathlib import Path
-
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-# Import Base
-from database.models import Base
-
-# Import all models so SQLAlchemy registers every table
-from database import models  # noqa: F401
+from config.settings import DATABASE_URL
 
 
 # ============================================================
-# PROJECT DIRECTORY
+# BASE
 # ============================================================
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-
-# ============================================================
-# DATABASE DIRECTORY
-# ============================================================
-
-DATABASE_DIR = BASE_DIR / "data"
-
-DATABASE_DIR.mkdir(
-    parents=True,
-    exist_ok=True,
-)
+class Base(DeclarativeBase):
+    pass
 
 
 # ============================================================
-# SQLITE DATABASE FILE
-# ============================================================
-
-DATABASE_PATH = DATABASE_DIR / "examina.db"
-
-
-# ============================================================
-# DATABASE URL
-# ============================================================
-
-DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
-
-
-# ============================================================
-# DATABASE ENGINE
+# ENGINE
 # ============================================================
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={
-        "check_same_thread": False,
-    },
-    echo=False,
+    pool_pre_ping=True,
+    pool_recycle=1800,
+)
+
+
+# ============================================================
+# SESSION
+# ============================================================
+
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False,
+    expire_on_commit=False,
 )
 
 
@@ -65,46 +39,8 @@ engine = create_engine(
 # DATABASE SESSION
 # ============================================================
 
-SessionLocal = sessionmaker(
-    bind=engine,
-    autoflush=False,
-    autocommit=False,
-)
-
-
-# ============================================================
-# CREATE ALL DATABASE TABLES
-# ============================================================
-
-def create_database() -> None:
-    """
-    Create all Examina AI database tables.
-
-    The table definitions are contained in:
-
-        database/models.py
-
-    If the database already exists, existing tables
-    are not deleted.
-    """
-
-    Base.metadata.create_all(
-        bind=engine,
-    )
-
-
-# ============================================================
-# GET DATABASE SESSION
-# ============================================================
-
 def get_db():
-    """
-    Provide a SQLAlchemy database session.
-
-    The session is automatically closed after use.
-    """
-
-    db: Session = SessionLocal()
+    db = SessionLocal()
 
     try:
         yield db
@@ -114,36 +50,15 @@ def get_db():
 
 
 # ============================================================
-# INITIALIZE DATABASE
+# CREATE DATABASE TABLES
 # ============================================================
 
-def initialize_database() -> None:
-    """
-    Initialize the Examina AI SQLite database.
-    """
+def create_database():
+    # Import models before creating tables so SQLAlchemy
+    # knows about every table.
 
-    create_database()
+    from database import models  # noqa: F401
 
-
-# ============================================================
-# DIRECT EXECUTION
-# ============================================================
-
-if __name__ == "__main__":
-
-    print("=" * 70)
-    print("EXAMINA AI DATABASE")
-    print("=" * 70)
-
-    print()
-    print("Database location:")
-    print(DATABASE_PATH)
-
-    print()
-
-    initialize_database()
-
-    print("Database initialized successfully.")
-    print("All tables are ready.")
-
-    print("=" * 70)
+    Base.metadata.create_all(
+        bind=engine
+    )
