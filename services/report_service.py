@@ -9,35 +9,57 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from database.models import (
-    Student,
-    Subject,
-    Result,
-    AcademicTerm,
     AcademicSession,
+    AcademicTerm,
+    Result,
     School,
+    Student,
     StudentTermReport,
+    Subject,
 )
-
-from services.result_service import (
-    calculate_overall_positions,
-)
+from services.result_service import calculate_overall_positions
 
 
 # ============================================================
-# CALCULATE TERM AVERAGE
+# GET / CREATE TERM REPORT
+# ============================================================
+
+def get_or_create_term_report(
+    db: Session,
+    student_id: int,
+    academic_term_id: int,
+):
+    report = db.scalar(
+        select(StudentTermReport).where(
+            StudentTermReport.student_id == student_id,
+            StudentTermReport.academic_term_id == academic_term_id,
+        )
+    )
+
+    if report is None:
+        report = StudentTermReport(
+            student_id=student_id,
+            academic_term_id=academic_term_id,
+            principal_approved=False,
+            published=False,
+        )
+
+        db.add(report)
+        db.commit()
+        db.refresh(report)
+
+    return report
+
+
+# ============================================================
+# TERM AVERAGE
 # ============================================================
 
 def calculate_term_average(
     db: Session,
     student_id: int,
     academic_term_id: int,
-):
-    """
-    Calculate a student's average for one term.
-
-    Average =
-        Sum of subject totals / Number of subjects
-    """
+) -> float:
 
     results = db.scalars(
         select(Result).where(
@@ -49,19 +71,28 @@ def calculate_term_average(
     if not results:
         return 0.0
 
-    total_score = sum(
-        result.total
+    valid_results = [
+        result
         for result in results
+        if result.total is not None
+    ]
+
+    if not valid_results:
+        return 0.0
+
+    total = sum(
+        float(result.total)
+        for result in valid_results
     )
 
     return round(
-        total_score / len(results),
+        total / len(valid_results),
         2,
     )
 
 
 # ============================================================
-# CALCULATE YEAR AVERAGE
+# YEAR AVERAGE
 # ============================================================
 
 def calculate_year_average(
@@ -69,22 +100,6 @@ def calculate_year_average(
     student_id: int,
     academic_session_id: int,
 ):
-    """
-    Calculate the student's yearly average.
-
-    This is only calculated when all three terms
-    have results.
-
-    Formula:
-
-        (1st Term Average
-         + 2nd Term Average
-         + 3rd Term Average) / 3
-    """
-
-    # --------------------------------------------------------
-    # Get all three terms
-    # --------------------------------------------------------
 
     terms = db.scalars(
         select(AcademicTerm)
@@ -92,103 +107,45 @@ def calculate_year_average(
             AcademicTerm.academic_session_id
             == academic_session_id
         )
-        .order_by(
-            AcademicTerm.term_number
-        )
+        .order_by(AcademicTerm.term_number)
     ).all()
-
-    # --------------------------------------------------------
-    # We require exactly the three academic terms
-    # --------------------------------------------------------
 
     if len(terms) < 3:
         return None
 
-    term_averages = []
+    averages = []
 
-    for term in terms:
+    for term in terms[:3]:
 
-        average = calculate_term_average(
-            db=db,
-            student_id=student_id,
-            academic_term_id=term.id,
-        )
-
-        # ----------------------------------------------------
-        # If a student has no result for a term,
-        # yearly average is not yet available.
-        # ----------------------------------------------------
-
-        results_exist = db.scalar(
-            select(Result.id).where(
+        results = db.scalars(
+            select(Result).where(
                 Result.student_id == student_id,
                 Result.academic_term_id == term.id,
             )
-        )
+        ).all()
 
-        if results_exist is None:
+        if not results:
             return None
 
-        term_averages.append(
-            average
+        average = calculate_term_average(
+            db,
+            student_id,
+            term.id,
         )
 
-    # --------------------------------------------------------
-    # YEAR AVERAGE
-    # --------------------------------------------------------
+        averages.append(average)
 
-    year_average = (
-        sum(term_averages) / 3
-    )
+    if len(averages) != 3:
+        return None
 
     return round(
-        year_average,
+        sum(averages) / 3,
         2,
     )
 
 
 # ============================================================
-# GET OR CREATE TERM REPORT
-# ============================================================
-
-def get_or_create_term_report(
-    db: Session,
-    student_id: int,
-    academic_term_id: int,
-):
-    """
-    Get the student's term report.
-
-    If it doesn't exist, create it.
-    """
-
-    report = db.scalar(
-        select(StudentTermReport).where(
-            StudentTermReport.student_id
-            == student_id,
-
-            StudentTermReport.academic_term_id
-            == academic_term_id,
-        )
-    )
-
-    if report is None:
-
-        report = StudentTermReport(
-            student_id=student_id,
-            academic_term_id=academic_term_id,
-            principal_approved=False,
-        )
-
-        db.add(report)
-        db.commit()
-        db.refresh(report)
-
-    return report
-
-
-# ============================================================
-# SAVE TEACHER'S REMARK
+# TEACHER REMARK
 # ============================================================
 
 def save_teachers_remark(
@@ -197,9 +154,6 @@ def save_teachers_remark(
     academic_term_id: int,
     remark: str,
 ):
-    """
-    Save or update the class teacher's remark.
-    """
 
     report = get_or_create_term_report(
         db,
@@ -207,17 +161,16 @@ def save_teachers_remark(
         academic_term_id,
     )
 
-    # --------------------------------------------------------
-    # Do not allow editing an approved report
-    # --------------------------------------------------------
-
     if report.principal_approved:
         raise PermissionError(
-            "This report has already been approved "
-            "by the principal."
+            "This report has already been approved by the principal."
         )
 
-    report.teachers_remark = remark
+    report.teachers_remark = (
+        remark.strip()
+        if remark
+        else None
+    )
 
     db.commit()
     db.refresh(report)
@@ -226,21 +179,17 @@ def save_teachers_remark(
 
 
 # ============================================================
-# PRINCIPAL APPROVES REPORT
+# PRINCIPAL APPROVAL
 # ============================================================
 
 def approve_student_report(
     db: Session,
     student_id: int,
     academic_term_id: int,
-    principals_remark: str,
+    principal_remark: str,
     promotion_status: str | None = None,
+    principal_id: int | None = None,
 ):
-    """
-    Principal approves a student's complete report.
-
-    For 3rd Term, promotion_status is required.
-    """
 
     report = get_or_create_term_report(
         db,
@@ -258,87 +207,111 @@ def approve_student_report(
             "Academic term not found."
         )
 
-    # --------------------------------------------------------
-    # Don't approve twice
-    # --------------------------------------------------------
-
     if report.principal_approved:
         raise ValueError(
             "This report has already been approved."
         )
 
     # --------------------------------------------------------
-    # 3rd TERM
+    # THIRD TERM
     # --------------------------------------------------------
 
     if term.term_number == 3:
 
-        if promotion_status not in (
+        if promotion_status not in {
             "PROMOTED",
             "NOT_PROMOTED",
-        ):
+        }:
             raise ValueError(
-                "A 3rd Term report must have a valid "
-                "promotion status."
-            )
-
-        # ----------------------------------------------------
-        # Calculate year average
-        # ----------------------------------------------------
-
-        session = db.get(
-            AcademicSession,
-            term.academic_session_id,
-        )
-
-        if session is None:
-            raise ValueError(
-                "Academic session not found."
+                "Third Term requires a valid promotion status."
             )
 
         year_average = calculate_year_average(
-            db=db,
-            student_id=student_id,
-            academic_session_id=session.id,
+            db,
+            student_id,
+            term.academic_session_id,
         )
 
         if year_average is None:
             raise ValueError(
-                "The student's results for all three "
-                "terms are required before calculating "
-                "the year average."
+                "Results for all three terms are required "
+                "before calculating the year average."
             )
 
         report.year_average = year_average
-
-        report.promotion_status = (
-            promotion_status
-        )
+        report.promotion_status = promotion_status
 
     else:
 
-        # ----------------------------------------------------
-        # No promotion decision in 1st or 2nd Term
-        # ----------------------------------------------------
-
-        report.promotion_status = None
         report.year_average = None
+        report.promotion_status = None
 
     # --------------------------------------------------------
-    # Principal's remark
+    # APPROVAL
     # --------------------------------------------------------
 
-    report.principals_remark = (
-        principals_remark
+    report.principal_remark = (
+        principal_remark.strip()
+        if principal_remark
+        else None
     )
 
-    # --------------------------------------------------------
-    # Approve
-    # --------------------------------------------------------
-
     report.principal_approved = True
-
+    report.principal_id = principal_id
     report.approved_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(report)
+
+    return report
+
+
+# ============================================================
+# PUBLISH REPORT
+# ============================================================
+
+def publish_report(
+    db: Session,
+    student_id: int,
+    academic_term_id: int,
+):
+
+    report = get_or_create_term_report(
+        db,
+        student_id,
+        academic_term_id,
+    )
+
+    if not report.principal_approved:
+        raise PermissionError(
+            "The report must be approved by the principal before publication."
+        )
+
+    report.published = True
+
+    db.commit()
+    db.refresh(report)
+
+    return report
+
+
+# ============================================================
+# UNPUBLISH REPORT
+# ============================================================
+
+def unpublish_report(
+    db: Session,
+    student_id: int,
+    academic_term_id: int,
+):
+
+    report = get_or_create_term_report(
+        db,
+        student_id,
+        academic_term_id,
+    )
+
+    report.published = False
 
     db.commit()
     db.refresh(report)
@@ -355,13 +328,6 @@ def build_student_report(
     student_id: int,
     academic_term_id: int,
 ):
-    """
-    Build a complete ExaminA AI report card.
-    """
-
-    # ========================================================
-    # GET STUDENT
-    # ========================================================
 
     student = db.get(
         Student,
@@ -373,10 +339,6 @@ def build_student_report(
             "Student not found."
         )
 
-    # ========================================================
-    # GET TERM
-    # ========================================================
-
     term = db.get(
         AcademicTerm,
         academic_term_id,
@@ -387,23 +349,15 @@ def build_student_report(
             "Academic term not found."
         )
 
-    # ========================================================
-    # GET SESSION
-    # ========================================================
-
-    session = db.get(
+    academic_session = db.get(
         AcademicSession,
         term.academic_session_id,
     )
 
-    if session is None:
+    if academic_session is None:
         raise ValueError(
             "Academic session not found."
         )
-
-    # ========================================================
-    # GET SCHOOL
-    # ========================================================
 
     school = db.get(
         School,
@@ -415,52 +369,24 @@ def build_student_report(
             "School not found."
         )
 
-    # ========================================================
-    # GET TERM REPORT
-    # ========================================================
-    report = (
-    db.query(StudentTermReport)
-    .filter(
-        StudentTermReport.student_id == student_id,
-        StudentTermReport.academic_term_id == academic_term_id,
-    )
-    .first()
+    report = get_or_create_term_report(
+        db,
+        student_id,
+        academic_term_id,
     )
 
-    if report is None:
-    raise ValueError(
-        "Student term report not found."
-    )      
-    # ========================================================
-    # GET RESULTS
-    # ========================================================
-
-    query = (
+    results = db.scalars(
         select(Result)
         .join(
             Subject,
-            Result.subject_id
-            == Subject.id,
+            Result.subject_id == Subject.id,
         )
         .where(
-            Result.student_id
-            == student_id,
-
-            Result.academic_term_id
-            == academic_term_id,
+            Result.student_id == student_id,
+            Result.academic_term_id == academic_term_id,
         )
-        .order_by(
-            Subject.name
-        )
-    )
-
-    results = list(
-        db.scalars(query).all()
-    )
-
-    # ========================================================
-    # SUBJECT RESULTS
-    # ========================================================
+        .order_by(Subject.name)
+    ).all()
 
     subjects = []
 
@@ -468,57 +394,42 @@ def build_student_report(
 
         subjects.append(
             {
-                "subject_id":
-                    result.subject_id,
-
-                "subject":
-                    result.subject.name,
-
-                "first_test":
-                    result.first_test,
-
-                "second_test":
-                    result.second_test,
-
-                "exam":
-                    result.exam,
-
-                "total":
-                    result.total,
-
-                "grade":
-                    result.grade,
-
-                "position":
-                    result.position,
+                "subject_id": result.subject_id,
+                "subject": result.subject.name,
+                "first_test": result.first_test,
+                "second_test": result.second_test,
+                "exam": result.exam,
+                "total": result.total,
+                "grade": result.grade,
+                "position": result.position,
             }
         )
 
-    # ========================================================
-    # TERM TOTAL
-    # ========================================================
+    valid_results = [
+        result
+        for result in results
+        if result.total is not None
+    ]
 
     total_score = sum(
-        result.total
-        for result in results
+        float(result.total)
+        for result in valid_results
     )
 
-    subject_count = len(results)
+    subject_count = len(valid_results)
 
-    if subject_count > 0:
-
-        average = round(
+    average = (
+        round(
             total_score / subject_count,
             2,
         )
+        if subject_count
+        else 0.0
+    )
 
-    else:
-
-        average = 0.0
-
-    # ========================================================
-    # OVERALL CLASS POSITION
-    # ========================================================
+    # --------------------------------------------------------
+    # OVERALL POSITION
+    # --------------------------------------------------------
 
     rankings = calculate_overall_positions(
         db=db,
@@ -531,204 +442,77 @@ def build_student_report(
 
     for item in rankings:
 
-        if item["student"].id == student.id:
+        ranked_student = item.get("student")
 
-            overall_position = (
-                item["position"]
-            )
+        if ranked_student is not None:
+            if ranked_student.id == student.id:
+                overall_position = item.get("position")
+                break
 
-            break
-
-    # ========================================================
+    # --------------------------------------------------------
     # YEAR AVERAGE
-    # ========================================================
+    # --------------------------------------------------------
 
     year_average = None
 
     if term.term_number == 3:
 
         year_average = calculate_year_average(
-            db=db,
-            student_id=student_id,
-            academic_session_id=session.id,
+            db,
+            student_id,
+            academic_session.id,
         )
-
-    # ========================================================
-    # APPROVAL STATUS
-    # ========================================================
-
-    principal_approved = False
-
-    if term_report:
-
-        principal_approved = (
-            term_report.principal_approved
-        )
-
-    # ========================================================
-    # BUILD REPORT
-    # ========================================================
 
     return {
-
-        # ====================================================
-        # SCHOOL
-        # ====================================================
-
         "school": {
-
-            "name":
-                school.name,
-
-            "badge":
-                school.school_badge,
-
-            "address":
-                school.address,
-
-            "email":
-                school.email,
-
-            "phone":
-                school.phone,
-
-            "local_government":
-                school.local_government,
-
-            "state":
-                school.state,
+            "name": school.name,
+            "badge": school.school_badge,
+            "address": school.address,
+            "email": school.email,
+            "phone": school.phone,
+            "local_government": school.local_government,
+            "state": school.state,
         },
-
-        # ====================================================
-        # ACADEMIC
-        # ====================================================
 
         "academic": {
-
-            "session":
-                session.name,
-
-            "term":
-                term.name,
-
-            "term_number":
-                term.term_number,
-
-            "curriculum_version":
-                session.curriculum_version,
+            "session": academic_session.name,
+            "term": term.name,
+            "term_number": term.term_number,
+            "curriculum_version": (
+                academic_session.curriculum_version
+            ),
         },
-
-        # ====================================================
-        # STUDENT
-        # ====================================================
 
         "student": {
-
-            "id":
-                student.id,
-
-            "admission_number":
-                student.admission_number,
-
-            "first_name":
-                student.first_name,
-
-            "middle_name":
-                student.middle_name,
-
-            "last_name":
-                student.last_name,
-
-            "class":
-                student.school_class.name,
-
-            "education_level":
-                student.education_level,
-
-            "field":
-                student.field,
+            "id": student.id,
+            "admission_number": student.admission_number,
+            "first_name": student.first_name,
+            "middle_name": student.middle_name,
+            "last_name": student.last_name,
+            "class": student.school_class.name,
+            "education_level": student.education_level,
+            "field": student.field,
         },
 
-        # ====================================================
-        # SUBJECTS
-        # ====================================================
-
-        "subjects":
-            subjects,
-
-        # ====================================================
-        # SUMMARY
-        # ====================================================
+        "subjects": subjects,
 
         "summary": {
-
-            "total_score":
-                round(
-                    total_score,
-                    2,
-                ),
-
-            "subject_count":
-                subject_count,
-
-            "average":
-                average,
-
-            "overall_position":
-                overall_position,
-
-            "year_average":
-                year_average,
+            "total_score": round(
+                total_score,
+                2,
+            ),
+            "subject_count": subject_count,
+            "average": average,
+            "overall_position": overall_position,
+            "year_average": year_average,
         },
 
-        # ====================================================
-        # REMARKS
-        # ====================================================
-
-        "teachers_remark": (
-            term_report.teachers_remark
-            if term_report
-            else None
-        ),
-
-        "principals_remark": (
-            term_report.principals_remark
-            if term_report
-            else None
-        ),
-        "principal_approved":
-         report.principal_approved,
-
-        "approved_at":
-        report.approved_at,
-
-        "year_average":
-        report.year_average,
-
-        "promotion_status":
-        report.promotion_status,
-        # ====================================================
-        # THIRD TERM PROMOTION
-        # ====================================================
-
-        "promotion_status": (
-            term_report.promotion_status
-            if term_report
-            else None
-        ),
-
-        # ====================================================
-        # APPROVAL
-        # ====================================================
-
-        "principal_approved":
-            principal_approved,
-
-        "approved_at": (
-            term_report.approved_at
-            if term_report
-            else None
-        ),
+        "teachers_remark": report.teachers_remark,
+        "principal_remark": report.principal_remark,
+        "principal_approved": report.principal_approved,
+        "approved_at": report.approved_at,
+        "promotion_status": report.promotion_status,
+        "published": report.published,
     }
 
 
@@ -741,17 +525,10 @@ def can_download_report(
     student_id: int,
     academic_term_id: int,
 ):
-    """
-    Determine whether a student report can be downloaded.
-
-    Download is allowed ONLY after principal approval.
-    """
 
     report = db.scalar(
         select(StudentTermReport).where(
-            StudentTermReport.student_id
-            == student_id,
-
+            StudentTermReport.student_id == student_id,
             StudentTermReport.academic_term_id
             == academic_term_id,
         )
@@ -760,11 +537,14 @@ def can_download_report(
     if report is None:
         return False
 
-    return report.principal_approved
+    return bool(
+        report.principal_approved
+        and report.published
+    )
 
 
 # ============================================================
-# REQUIRE APPROVAL BEFORE DOWNLOAD
+# REQUIRE DOWNLOAD PERMISSION
 # ============================================================
 
 def require_report_approval(
@@ -772,20 +552,16 @@ def require_report_approval(
     student_id: int,
     academic_term_id: int,
 ):
-    """
-    Stop report generation/download if the principal
-    has not approved the report.
-    """
 
     if not can_download_report(
         db,
         student_id,
         academic_term_id,
     ):
-
         raise PermissionError(
-            "This report cannot be downloaded yet. "
-            "The principal has not approved it."
+            "This report cannot be downloaded until "
+            "it has been approved and published by "
+            "the principal."
         )
 
     return True
