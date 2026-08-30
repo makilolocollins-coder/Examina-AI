@@ -285,6 +285,7 @@ class SchoolClass(Base):
         UniqueConstraint(
             "school_id",
             "name",
+            "stream",
             name="uq_school_class",
         ),
     )
