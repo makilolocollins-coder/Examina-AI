@@ -1,72 +1,38 @@
 import os
-
 import streamlit as st
 from dotenv import load_dotenv
-
 
 load_dotenv()
 
 
-def get_database_url() -> str:
+def get_database_url():
+    value = None
 
-    # --------------------------------------------------------
     # Streamlit Cloud
-    # --------------------------------------------------------
-
     try:
-        database_url = st.secrets.get("DATABASE_URL")
-
+        value = st.secrets.get("DATABASE_URL")
     except Exception:
-        database_url = None
+        pass
 
-    # --------------------------------------------------------
-    # Local development
-    # --------------------------------------------------------
+    # Local fallback
+    if not value:
+        value = os.getenv("DATABASE_URL")
 
-    if not database_url:
-        database_url = os.getenv("DATABASE_URL")
+    if not value:
+        raise RuntimeError("DATABASE_URL is missing.")
 
-    if not database_url:
-        raise RuntimeError(
-            "DATABASE_URL is not configured. "
-            "Add DATABASE_URL to Streamlit Secrets "
-            "or your local .env file."
-        )
+    value = str(value).strip()
 
-    database_url = str(database_url).strip()
-
-    # --------------------------------------------------------
     # Remove accidental surrounding quotes
-    # --------------------------------------------------------
+    if len(value) >= 2:
+        if value[0] == value[-1] and value[0] in ('"', "'"):
+            value = value[1:-1].strip()
 
-    if (
-        len(database_url) >= 2
-        and database_url[0] == '"'
-        and database_url[-1] == '"'
-    ):
-        database_url = database_url[1:-1]
+    # Convert old PostgreSQL scheme
+    if value.startswith("postgres://"):
+        value = "postgresql://" + value[len("postgres://"):]
 
-    if (
-        len(database_url) >= 2
-        and database_url[0] == "'"
-        and database_url[-1] == "'"
-    ):
-        database_url = database_url[1:-1]
-
-    # --------------------------------------------------------
-    # Supabase PostgreSQL URL
-    # --------------------------------------------------------
-
-    if database_url.startswith(
-        "postgres://"
-    ):
-        database_url = database_url.replace(
-            "postgres://",
-            "postgresql://",
-            1,
-        )
-
-    return database_url
+    return value
 
 
 DATABASE_URL = get_database_url()
