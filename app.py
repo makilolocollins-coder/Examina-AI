@@ -6,8 +6,8 @@
 import streamlit as st
 
 from services.supabase_client import get_supabase_client
+from auth.authentication import is_authenticated
 from auth.login import show_login
-
 
 # ============================================================
 # PAGE CONFIGURATION
