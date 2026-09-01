@@ -72,19 +72,19 @@ def get_pending_schools():
 # UPDATE SCHOOL STATUS
 # ============================================================
 
-
 def update_school_status(school_id, status):
 
     supabase = get_supabase_client()
 
+    # FORCE the value — do not use the status argument
     payload = {
-        "verification_status": status,
+        "verification_status": "approved",
         "is_active": True,
     }
 
-    st.write("DEBUG STATUS:", repr(status))
-    st.write("DEBUG PAYLOAD:", repr(payload))
-    st.write("DEBUG SCHOOL ID:", school_id)
+    st.write("DEBUG SCHOOL ID:", repr(school_id))
+    st.write("DEBUG STATUS ARGUMENT:", repr(status))
+    st.write("DEBUG FORCED PAYLOAD:", repr(payload))
 
     response = (
         supabase
@@ -94,7 +94,10 @@ def update_school_status(school_id, status):
         .execute()
     )
 
+    st.write("DEBUG RESPONSE:", response.data)
+
     return response.data
+
         response = (
             supabase
             .table("schools")
