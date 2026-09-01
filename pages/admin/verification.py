@@ -76,25 +76,34 @@ def update_school_status(school_id, status):
 
     supabase = get_supabase_client()
 
-    # FORCE the value — do not use the status argument
-    payload = {
-        "verification_status": "approved",
-        "is_active": True,
-    }
+    st.write("SCHOOL ID:", repr(school_id))
+    st.write("STATUS:", repr(status))
+    st.write("STATUS TYPE:", type(status))
 
-    st.write("DEBUG SCHOOL ID:", repr(school_id))
-    st.write("DEBUG STATUS ARGUMENT:", repr(status))
-    st.write("DEBUG FORCED PAYLOAD:", repr(payload))
+    # First READ the exact row
+    before = (
+        supabase
+        .table("schools")
+        .select("id,name,verification_status,is_active")
+        .eq("id", school_id)
+        .single()
+        .execute()
+    )
 
+    st.write("BEFORE UPDATE:", before.data)
+
+    # Update ONLY verification_status
     response = (
         supabase
         .table("schools")
-        .update(payload)
+        .update({
+            "verification_status": "approved"
+        })
         .eq("id", school_id)
         .execute()
     )
 
-    st.write("DEBUG RESPONSE:", response.data)
+    st.write("AFTER UPDATE:", response.data)
 
     return response.data
 
