@@ -2,34 +2,30 @@ import streamlit as st
 from supabase import create_client
 
 
-@st.cache_resource
 def get_supabase_client():
 
     try:
-        supabase_url = st.secrets["SUPABASE_URL"]
-        supabase_key = st.secrets["SUPABASE_KEY"]
+        database_url = st.secrets["DATABASE_URL"]
+        database_key = st.secrets["DATABASE_KEY"]
 
     except KeyError as error:
+        missing_key = error.args[0]
 
         raise RuntimeError(
-            f"{error.args[0]} is missing. "
-            "Check that Streamlit Secrets contains "
-            "SUPABASE_URL and SUPABASE_KEY."
+            f"Streamlit Secret '{missing_key}' is missing."
         )
 
-    if not supabase_url:
-
+    if not database_url:
         raise RuntimeError(
-            "SUPABASE_URL is missing."
+            "DATABASE_URL is empty."
         )
 
-    if not supabase_key:
-
+    if not database_key:
         raise RuntimeError(
-            "SUPABASE_KEY is missing."
+            "DATABASE_KEY is empty."
         )
 
     return create_client(
-        supabase_url,
-        supabase_key,
+        database_url,
+        database_key,
     )
