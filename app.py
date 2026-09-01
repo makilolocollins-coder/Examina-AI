@@ -11,6 +11,7 @@ from pages.admin.dashboard import show_admin_dashboard
 from pages.admin.verification import show_verification
 from pages.school_login import show_school_portal
 
+
 # ============================================================
 # PAGE CONFIGURATION
 # ============================================================
@@ -99,41 +100,21 @@ def admin_portal():
 
 
 # ============================================================
-# SCHOOL PORTAL
-# ============================================================
-
-def school_portal():
-
-    st.title("School Portal")
-
-    st.info(
-        "School login will be connected next."
-    )
-
-    st.divider()
-
-    st.subheader(
-        "New School?"
-    )
-
-    if st.button(
-        "Register School",
-        type="primary",
-        use_container_width=True,
-    ):
-
-        st.session_state.portal = "register"
-
-        st.rerun()
-
-
-# ============================================================
 # SCHOOL REGISTRATION
 # ============================================================
 
 def registration_portal():
 
     show_register()
+
+
+# ============================================================
+# SCHOOL PORTAL
+# ============================================================
+
+def school_portal():
+
+    show_school_portal()
 
 
 # ============================================================
@@ -151,6 +132,7 @@ def main():
         st.session_state.portal = "home"
 
     portal = st.session_state.portal
+
 
     # --------------------------------------------------------
     # HOME
@@ -192,6 +174,7 @@ def main():
 
                 st.rerun()
 
+
         with col2:
 
             st.subheader(
@@ -211,6 +194,7 @@ def main():
 
                 st.rerun()
 
+
     # --------------------------------------------------------
     # ADMIN
     # --------------------------------------------------------
@@ -219,13 +203,15 @@ def main():
 
         admin_portal()
 
+
     # --------------------------------------------------------
     # SCHOOL
     # --------------------------------------------------------
 
     elif portal == "school":
 
-        show_school_portal()
+        school_portal()
+
 
     # --------------------------------------------------------
     # REGISTRATION
