@@ -40,7 +40,6 @@ if "school_user" not in st.session_state:
     st.session_state.school_user = None
 
 
-
 # ============================================================
 # BRANDING
 # ============================================================
@@ -224,9 +223,9 @@ def main():
     # SCHOOL
     # --------------------------------------------------------
 
-    elif page == "school":
+    elif portal == "school":
 
-    show_school_portal()
+        show_school_portal()
 
     # --------------------------------------------------------
     # REGISTRATION
