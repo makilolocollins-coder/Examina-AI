@@ -54,14 +54,8 @@ def get_pending_schools():
             "is_active,"
             "created_at"
         )
-        .eq(
-            "verification_status",
-            "pending"
-        )
-        .order(
-            "created_at",
-            desc=False
-        )
+        .eq("verification_status", "pending")
+        .order("created_at", desc=False)
         .execute()
     )
 
@@ -69,78 +63,76 @@ def get_pending_schools():
 
 
 # ============================================================
-# UPDATE SCHOOL STATUS
+# APPROVE SCHOOL — DIAGNOSTIC VERSION
 # ============================================================
 
-def update_school_status(school_id, status):
+def approve_school(school_id):
 
     supabase = get_supabase_client()
 
-    # --------------------------------------------------------
-    # DEBUG INFORMATION
-    # --------------------------------------------------------
-
-    st.write(
-        "SCHOOL ID:",
-        repr(school_id)
-    )
-
-    st.write(
-        "STATUS:",
-        repr(status)
-    )
-
-    st.write(
-        "STATUS TYPE:",
-        type(status)
-    )
-
-    # --------------------------------------------------------
-    # READ THE EXACT SCHOOL BEFORE UPDATE
-    # --------------------------------------------------------
-
-    before = (
+    # Read the school first
+    before_response = (
         supabase
         .table("schools")
         .select(
-            "id,"
-            "name,"
-            "verification_status,"
-            "is_active"
+            "id,name,verification_status,is_active"
         )
-        .eq(
-            "id",
-            school_id
-        )
+        .eq("id", school_id)
         .single()
         .execute()
     )
 
     st.write(
         "BEFORE UPDATE:",
-        before.data
+        before_response.data
     )
 
-    # --------------------------------------------------------
-    # UPDATE ONLY verification_status
-    # --------------------------------------------------------
+    # Force the exact value allowed by the database
+    payload = {
+        "verification_status": "approved"
+    }
 
+    st.write(
+        "PAYLOAD:",
+        payload
+    )
+
+    # Perform the update
     response = (
         supabase
         .table("schools")
-        .update({
-            "verification_status": "approved"
-        })
-        .eq(
-            "id",
-            school_id
-        )
+        .update(payload)
+        .eq("id", school_id)
         .execute()
     )
 
     st.write(
         "AFTER UPDATE:",
         response.data
+    )
+
+    return response.data
+
+
+# ============================================================
+# REJECT SCHOOL
+# ============================================================
+
+def reject_school(school_id):
+
+    supabase = get_supabase_client()
+
+    response = (
+        supabase
+        .table("schools")
+        .update(
+            {
+                "verification_status": "rejected",
+                "is_active": False
+            }
+        )
+        .eq("id", school_id)
+        .execute()
     )
 
     return response.data
@@ -154,19 +146,13 @@ def show_verification():
 
     check_admin_access()
 
-    st.title(
-        "School Verification"
-    )
+    st.title("School Verification")
 
     st.caption(
         "Review schools waiting for approval."
     )
 
     st.divider()
-
-    # --------------------------------------------------------
-    # LOAD PENDING SCHOOLS
-    # --------------------------------------------------------
 
     try:
 
@@ -180,10 +166,6 @@ def show_verification():
 
         return
 
-    # --------------------------------------------------------
-    # NO PENDING SCHOOLS
-    # --------------------------------------------------------
-
     if not schools:
 
         st.success(
@@ -192,10 +174,6 @@ def show_verification():
 
         return
 
-    # --------------------------------------------------------
-    # COUNT
-    # --------------------------------------------------------
-
     st.metric(
         "Schools Awaiting Verification",
         len(schools)
@@ -203,17 +181,11 @@ def show_verification():
 
     st.divider()
 
-    # --------------------------------------------------------
-    # DISPLAY SCHOOLS
-    # --------------------------------------------------------
-
     for school in schools:
 
-        school_id = school.get("id")
+        school_id = school["id"]
 
-        with st.container(
-            border=True
-        ):
+        with st.container(border=True):
 
             st.subheader(
                 school.get(
@@ -221,10 +193,6 @@ def show_verification():
                     "Unnamed School"
                 )
             )
-
-            # ------------------------------------------------
-            # SCHOOL INFORMATION
-            # ------------------------------------------------
 
             col1, col2 = st.columns(2)
 
@@ -298,13 +266,7 @@ def show_verification():
 
             st.divider()
 
-            # ------------------------------------------------
-            # DOCUMENTS
-            # ------------------------------------------------
-
-            st.write(
-                "### Documents"
-            )
+            st.write("### Documents")
 
             certificate_url = school.get(
                 "ministry_certificate_url"
@@ -344,10 +306,6 @@ def show_verification():
 
             st.divider()
 
-            # ------------------------------------------------
-            # ACTIONS
-            # ------------------------------------------------
-
             approve_col, reject_col = st.columns(2)
 
             with approve_col:
@@ -356,14 +314,13 @@ def show_verification():
                     "Approve School",
                     key=f"approve_{school_id}",
                     type="primary",
-                    use_container_width=True,
+                    use_container_width=True
                 ):
 
                     try:
 
-                        update_school_status(
-                            school_id,
-                            "approved"
+                        approve_school(
+                            school_id
                         )
 
                         st.success(
@@ -383,40 +340,20 @@ def show_verification():
                 if st.button(
                     "Reject School",
                     key=f"reject_{school_id}",
-                    use_container_width=True,
+                    use_container_width=True
                 ):
 
                     try:
 
-                        supabase = get_supabase_client()
-
-                        response = (
-                            supabase
-                            .table("schools")
-                            .update({
-                                "verification_status": "rejected",
-                                "is_active": False,
-                            })
-                            .eq(
-                                "id",
-                                school_id
-                            )
-                            .execute()
+                        reject_school(
+                            school_id
                         )
 
-                        if response.data:
+                        st.warning(
+                            "School rejected."
+                        )
 
-                            st.warning(
-                                "School rejected."
-                            )
-
-                            st.rerun()
-
-                        else:
-
-                            st.error(
-                                "The school could not be rejected."
-                            )
+                        st.rerun()
 
                     except Exception as error:
 
