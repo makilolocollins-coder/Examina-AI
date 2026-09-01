@@ -143,57 +143,61 @@ def registration_styles():
 # REGISTRATION PAGE
 # ============================================================
 
+import streamlit as st
+
+
 def show_register():
 
-    registration_styles()
-
-    # ========================================================
-    # BRAND
-    # ========================================================
-
+    # CSS
     st.markdown(
         """
-        <div class="exa-brand">
+        <style>
+            .register-eyebrow {
+                font-size: 0.75rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
+                color: #4f46e5;
+                margin-bottom: 1rem;
+            }
 
-            <div class="exa-mark">
-                🎓
-            </div>
+            .register-title {
+                font-size: 3.5rem;
+                line-height: 1.05;
+                letter-spacing: -0.05em;
+                color: #0f172a;
+                margin-bottom: 1.2rem;
+            }
 
-            <div class="exa-name">
-                Examina
-                <span class="exa-ai">AI</span>
-            </div>
-
-        </div>
+            .register-description {
+                font-size: 1.05rem;
+                line-height: 1.7;
+                color: #64748b;
+                max-width: 550px;
+            }
+        </style>
         """,
         unsafe_allow_html=True,
     )
 
-    # ========================================================
-    # HERO
-    # ========================================================
-
+    # HEADER
     st.markdown(
         """
-        <div class="register-shell">
-
-            <div class="register-eyebrow">
-                School registration
-            </div>
-
-            <h1 class="register-title">
-                Bring your school<br>
-                into Examina.
-            </h1>
-
-            <p class="register-description">
-                Create your school's secure workspace
-                for managing students, teachers,
-                academic records, examinations
-                and results.
-            </p>
-
+        <div class="register-eyebrow">
+            School registration
         </div>
+
+        <h1 class="register-title">
+            Bring your school<br>
+            into Examina.
+        </h1>
+
+        <p class="register-description">
+            Create your school's secure workspace
+            for managing students, teachers,
+            academic records, examinations
+            and results.
+        </p>
         """,
         unsafe_allow_html=True,
     )
