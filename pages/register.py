@@ -1,6 +1,6 @@
 # ============================================================
 # EXAMINA AI
-# SCHOOL REGISTRATION
+# SCHOOL REGISTRATION PAGE
 # ============================================================
 
 import streamlit as st
@@ -13,254 +13,124 @@ from database.database import (
 
 
 # ============================================================
-# PAGE STYLES
+# PAGE CSS
 # ============================================================
 
-def register_styles():
+def registration_styles():
 
     st.markdown(
         """
         <style>
 
-        /* ----------------------------------------------------
-           BASE
-        ---------------------------------------------------- */
-
-        .stApp {
-            background: #f8fafc;
-        }
-
-        .block-container {
-            max-width: 1050px;
-            padding-top: 2.5rem;
-            padding-bottom: 4rem;
-        }
-
-        /* ----------------------------------------------------
-           HIDE STREAMLIT CHROME
-        ---------------------------------------------------- */
-
-        #MainMenu {
-            visibility: hidden;
-        }
-
-        header {
-            visibility: hidden;
-        }
-
-        footer {
-            visibility: hidden;
-        }
-
-        /* ----------------------------------------------------
-           BRAND
-        ---------------------------------------------------- */
-
-        .exa-brand {
-            display: flex;
-            align-items: center;
-            gap: 11px;
-            margin-bottom: 3.5rem;
-        }
-
-        .exa-mark {
-            width: 42px;
-            height: 42px;
-            border-radius: 12px;
-            background: #111827;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            box-shadow:
-                0 4px 12px rgba(15, 23, 42, 0.12);
-        }
-
-        .exa-name {
-            font-size: 1.15rem;
-            font-weight: 750;
-            letter-spacing: -0.035em;
-            color: #111827;
-        }
-
-        .exa-ai {
-            color: #4f46e5;
-        }
-
-        /* ----------------------------------------------------
-           INTRO
-        ---------------------------------------------------- */
-
-        .register-intro {
-            max-width: 720px;
-            margin-bottom: 2.5rem;
+        .register-shell {
+            max-width: 900px;
+            margin: 0 auto;
         }
 
         .register-eyebrow {
-            display: inline-block;
-            margin-bottom: 0.9rem;
             color: #4f46e5;
-            font-size: 0.72rem;
+            font-size: 0.75rem;
             font-weight: 800;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.10em;
             text-transform: uppercase;
+            margin-bottom: 0.7rem;
         }
 
         .register-title {
-            margin: 0;
-            color: #0f172a;
-            font-size: clamp(2.4rem, 5vw, 4rem);
-            line-height: 1;
-            font-weight: 800;
+            font-size: clamp(
+                2.6rem,
+                6vw,
+                4.6rem
+            );
+
+            line-height: 0.98;
+
             letter-spacing: -0.065em;
+
+            font-weight: 800;
+
+            color: #0f172a;
+
+            margin: 0;
         }
 
         .register-description {
             max-width: 650px;
-            margin-top: 1.15rem;
+
             color: #64748b;
+
             font-size: 1rem;
+
             line-height: 1.7;
+
+            margin-top: 1.3rem;
+
+            margin-bottom: 2.5rem;
         }
 
-        /* ----------------------------------------------------
-           FORM CARD
-        ---------------------------------------------------- */
-
-        .form-card {
+        .register-card {
             background: white;
+
             border: 1px solid #e2e8f0;
-            border-radius: 20px;
+
+            border-radius: 24px;
+
             padding: 2rem;
+
             box-shadow:
-                0 8px 30px rgba(15, 23, 42, 0.045);
+                0 15px 40px rgba(
+                    15,
+                    23,
+                    42,
+                    0.06
+                );
         }
 
-        .form-section-title {
-            color: #0f172a;
-            font-size: 1.05rem;
+        .card-title {
+            font-size: 1.2rem;
             font-weight: 750;
-            letter-spacing: -0.02em;
+            color: #0f172a;
             margin-bottom: 0.25rem;
         }
 
-        .form-section-description {
+        .card-description {
             color: #64748b;
-            font-size: 0.84rem;
-            line-height: 1.6;
+            font-size: 0.88rem;
             margin-bottom: 1.5rem;
         }
 
-        .section-divider {
-            height: 1px;
-            background: #eef2f7;
-            margin: 2rem 0;
+        .required-note {
+            color: #94a3b8;
+            font-size: 0.78rem;
+            margin-bottom: 1rem;
         }
-
-        /* ----------------------------------------------------
-           STREAMLIT INPUTS
-        ---------------------------------------------------- */
-
-        label {
-            font-weight: 650 !important;
-            color: #334155 !important;
-        }
-
-        .stTextInput input,
-        .stTextArea textarea,
-        .stSelectbox div[data-baseweb="select"] {
-            border-radius: 10px !important;
-        }
-
-        .stTextInput input,
-        .stTextArea textarea {
-            border-color: #cbd5e1 !important;
-            background: white !important;
-        }
-
-        .stTextInput input:focus,
-        .stTextArea textarea:focus {
-            border-color: #6366f1 !important;
-            box-shadow:
-                0 0 0 1px #6366f1 !important;
-        }
-
-        /* ----------------------------------------------------
-           BUTTON
-        ---------------------------------------------------- */
 
         .stButton > button {
+
             min-height: 48px;
-            border-radius: 11px;
+
+            border-radius: 12px;
+
             font-weight: 700;
+
             transition:
-                transform 120ms ease,
-                box-shadow 120ms ease;
+                transform 0.15s ease,
+                box-shadow 0.15s ease;
+
         }
 
         .stButton > button:hover {
+
             transform: translateY(-1px);
-        }
 
-        /* ----------------------------------------------------
-           SECURITY NOTE
-        ---------------------------------------------------- */
+            box-shadow:
+                0 8px 20px rgba(
+                    15,
+                    23,
+                    42,
+                    0.10
+                );
 
-        .security-note {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 13px 15px;
-            margin-top: 1.25rem;
-            border-radius: 11px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            color: #64748b;
-            font-size: 0.78rem;
-            line-height: 1.55;
-        }
-
-        .security-icon {
-            color: #16a34a;
-            font-weight: 800;
-        }
-
-        /* ----------------------------------------------------
-           FOOTER
-        ---------------------------------------------------- */
-
-        .register-footer {
-            text-align: center;
-            margin-top: 2.5rem;
-            color: #94a3b8;
-            font-size: 0.75rem;
-        }
-
-        /* ----------------------------------------------------
-           MOBILE
-        ---------------------------------------------------- */
-
-        @media (max-width: 700px) {
-
-            .block-container {
-                padding-left: 1rem;
-                padding-right: 1rem;
-                padding-top: 1.5rem;
-            }
-
-            .exa-brand {
-                margin-bottom: 2.5rem;
-            }
-
-            .register-title {
-                font-size: 2.6rem;
-            }
-
-            .form-card {
-                padding: 1.25rem;
-                border-radius: 16px;
-            }
         }
 
         </style>
@@ -270,12 +140,12 @@ def register_styles():
 
 
 # ============================================================
-# REGISTER PAGE
+# REGISTRATION PAGE
 # ============================================================
 
 def show_register():
 
-    register_styles()
+    registration_styles()
 
     # ========================================================
     # BRAND
@@ -290,7 +160,8 @@ def show_register():
             </div>
 
             <div class="exa-name">
-                Examina <span class="exa-ai">AI</span>
+                Examina
+                <span class="exa-ai">AI</span>
             </div>
 
         </div>
@@ -299,12 +170,12 @@ def show_register():
     )
 
     # ========================================================
-    # INTRO
+    # HERO
     # ========================================================
 
     st.markdown(
         """
-        <div class="register-intro">
+        <div class="register-shell">
 
             <div class="register-eyebrow">
                 School registration
@@ -316,9 +187,10 @@ def show_register():
             </h1>
 
             <p class="register-description">
-                Create your school's secure workspace for
-                managing students, teachers, academic records,
-                examinations and results.
+                Create your school's secure workspace
+                for managing students, teachers,
+                academic records, examinations
+                and results.
             </p>
 
         </div>
@@ -334,49 +206,57 @@ def show_register():
 
         states = get_states()
 
-    except Exception:
+    except Exception as error:
 
         st.error(
-            "We couldn't load the Nigerian states. "
-            "Please try again."
+            "We couldn't load the Nigerian states."
         )
 
-        return
+        with st.expander(
+            "Technical details"
+        ):
+
+            st.code(str(error))
+
+        st.stop()
 
     if not states:
 
         st.warning(
-            "No states are currently available."
+            "No Nigerian states are available."
         )
 
-        return
+        st.stop()
 
     # ========================================================
-    # FORM CARD
-    # ========================================================
-
-    st.markdown(
-        '<div class="form-card">',
-        unsafe_allow_html=True,
-    )
-
-    # ========================================================
-    # SCHOOL INFORMATION
+    # REGISTRATION CARD
     # ========================================================
 
     st.markdown(
         """
-        <div class="form-section-title">
-            School information
-        </div>
+        <div class="register-card">
 
-        <div class="form-section-description">
-            Enter the official information used to identify
-            your school.
+            <div class="card-title">
+                School information
+            </div>
+
+            <div class="card-description">
+                Enter the official information
+                for your school.
+            </div>
+
+            <div class="required-note">
+                Fields marked with * are required.
+            </div>
+
         </div>
         """,
         unsafe_allow_html=True,
     )
+
+    # ========================================================
+    # SCHOOL DETAILS
+    # ========================================================
 
     school_name = st.text_input(
         "School name *",
@@ -385,36 +265,32 @@ def show_register():
 
     registration_number = st.text_input(
         "School registration number *",
-        placeholder="Official school registration number",
+        placeholder="e.g. MOE/2026/001234",
     )
 
-    motto = st.text_input(
-        "School motto",
-        placeholder="e.g. Knowledge, Character and Excellence",
+    address = st.text_area(
+        "School address",
+        placeholder="Enter the school's full address",
+        height=100,
     )
+
+    phone = st.text_input(
+        "School phone number",
+        placeholder="e.g. 08012345678",
+    )
+
+    email = st.text_input(
+        "School email",
+        placeholder="school@example.com",
+    )
+
+    st.divider()
 
     # ========================================================
     # LOCATION
     # ========================================================
 
-    st.markdown(
-        '<div class="section-divider"></div>',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-        <div class="form-section-title">
-            School location
-        </div>
-
-        <div class="form-section-description">
-            Select the state and Local Government Area where
-            your school is located.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.subheader("School location")
 
     state_names = [
         state["name"]
@@ -430,7 +306,8 @@ def show_register():
         (
             state
             for state in states
-            if state["name"] == selected_state_name
+            if state["name"]
+            == selected_state_name
         ),
         None,
     )
@@ -438,38 +315,45 @@ def show_register():
     if selected_state is None:
 
         st.error(
-            "Unable to identify the selected state."
+            "The selected state could not be found."
         )
 
-        return
+        st.stop()
 
     state_id = selected_state["id"]
 
     # ========================================================
-    # LGAS
+    # LOAD LGAs
     # ========================================================
 
     try:
 
-        lgas = get_lgas(state_id)
-
-    except Exception:
-
-        st.error(
-            "We couldn't load the Local Government Areas "
-            "for this state."
+        lgas = get_lgas(
+            state_id
         )
 
-        return
+    except Exception as error:
+
+        st.error(
+            "We couldn't load the Local Government Areas."
+        )
+
+        with st.expander(
+            "Technical details"
+        ):
+
+            st.code(str(error))
+
+        st.stop()
 
     if not lgas:
 
         st.warning(
             "No Local Government Areas were found "
-            "for this state."
+            "for the selected state."
         )
 
-        return
+        st.stop()
 
     lga_names = [
         lga["name"]
@@ -485,7 +369,8 @@ def show_register():
         (
             lga
             for lga in lgas
-            if lga["name"] == selected_lga_name
+            if lga["name"]
+            == selected_lga_name
         ),
         None,
     )
@@ -493,95 +378,25 @@ def show_register():
     if selected_lga is None:
 
         st.error(
-            "Unable to identify the selected LGA."
+            "The selected Local Government Area "
+            "could not be found."
         )
 
-        return
+        st.stop()
 
     lga_id = selected_lga["id"]
-
-    # ========================================================
-    # CONTACT
-    # ========================================================
-
-    st.markdown(
-        '<div class="section-divider"></div>',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-        <div class="form-section-title">
-            Contact information
-        </div>
-
-        <div class="form-section-description">
-            These details help Examina identify and contact
-            your school when necessary.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    address = st.text_area(
-        "School address *",
-        placeholder="Enter the full school address",
-        height=100,
-    )
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        phone = st.text_input(
-            "Phone number",
-            placeholder="08012345678",
-        )
-
-    with col2:
-
-        email = st.text_input(
-            "School email",
-            placeholder="school@example.com",
-        )
-
-    # ========================================================
-    # SECURITY
-    # ========================================================
-
-    st.markdown(
-        """
-        <div class="security-note">
-
-            <div class="security-icon">
-                ✓
-            </div>
-
-            <div>
-                Your registration is stored securely.
-                Your school will initially remain
-                <strong>pending verification</strong> until
-                the required verification process is completed.
-            </div>
-
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.write("")
 
     # ========================================================
     # SUBMIT
     # ========================================================
 
-    submitted = st.button(
-        "Create school workspace →",
+    st.write("")
+
+    if st.button(
+        "Create school workspace",
         use_container_width=True,
         type="primary",
-    )
-
-    if submitted:
+    ):
 
         # ----------------------------------------------------
         # VALIDATION
@@ -603,14 +418,6 @@ def show_register():
 
             return
 
-        if not address.strip():
-
-            st.error(
-                "Please enter the school address."
-            )
-
-            return
-
         # ----------------------------------------------------
         # CREATE SCHOOL
         # ----------------------------------------------------
@@ -618,25 +425,39 @@ def show_register():
         try:
 
             result = create_school(
+
                 name=school_name.strip(),
-                registration_number=registration_number.strip(),
-                state=selected_state["name"],
-                local_government=selected_lga["name"],
-                lga_id=selected_lga["id"],
+
+                registration_number=(
+                    registration_number.strip()
+                ),
+
+                local_government=(
+                    selected_lga["name"]
+                ),
+
+                state=(
+                    selected_state["name"]
+                ),
+
                 address=address.strip(),
+
                 phone=phone.strip(),
+
                 email=email.strip(),
-                motto=motto.strip(),
+
+                lga_id=lga_id,
             )
 
         except Exception as error:
 
             st.error(
-                "We couldn't create the school workspace."
+                "School registration failed."
             )
 
-            # Don't expose database internals to users.
-            with st.expander("Technical details"):
+            with st.expander(
+                "Technical details"
+            ):
 
                 st.code(str(error))
 
@@ -650,61 +471,26 @@ def show_register():
 
             school = result[0]
 
-            st.session_state["school_id"] = school["id"]
-
-            st.session_state["school"] = school
-
-            st.session_state["page"] = "dashboard"
-
             st.success(
-                "School workspace created successfully."
+                "School registered successfully."
             )
 
-            st.rerun()
+            st.session_state[
+                "school_id"
+            ] = school["id"]
+
+            st.session_state[
+                "school"
+            ] = school
+
+            st.session_state[
+                "registration_complete"
+            ] = True
+
+            st.balloons()
 
         else:
 
             st.error(
-                "The school could not be created. "
-                "Please try again."
+                "The school could not be registered."
             )
-
-    st.markdown(
-        '<div class="section-divider"></div>',
-        unsafe_allow_html=True,
-    )
-
-    # ========================================================
-    # EXISTING SCHOOL
-    # ========================================================
-
-    st.caption(
-        "Already registered your school?"
-    )
-
-    if st.button(
-        "Sign in instead",
-        use_container_width=True,
-    ):
-
-        st.session_state["page"] = "login"
-
-        st.rerun()
-
-    st.markdown(
-        '</div>',
-        unsafe_allow_html=True,
-    )
-
-    # ========================================================
-    # FOOTER
-    # ========================================================
-
-    st.markdown(
-        """
-        <div class="register-footer">
-            Examina AI · Secure school management
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
