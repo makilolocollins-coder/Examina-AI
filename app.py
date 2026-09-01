@@ -5,19 +5,7 @@
 
 import streamlit as st
 
-
-# ============================================================
-# DATABASE
-# ============================================================
-
-from database.database import (
-    test_database_connection,
-)
-
-
-# ============================================================
-# AUTHENTICATION
-# ============================================================
+from database.database import test_database_connection
 
 from auth.authentication import (
     initialize_auth,
@@ -30,7 +18,6 @@ from auth.login import show_login
 
 # ============================================================
 # PAGE CONFIGURATION
-# MUST BE THE FIRST STREAMLIT COMMAND
 # ============================================================
 
 st.set_page_config(
@@ -49,339 +36,13 @@ initialize_auth()
 
 
 # ============================================================
-# GLOBAL STYLING
-# ============================================================
-
-st.markdown(
-    """
-    <style>
-
-    /* ========================================================
-       GENERAL
-       ======================================================== */
-
-    .stApp {
-        background:
-            radial-gradient(
-                circle at 85% 5%,
-                rgba(79, 70, 229, 0.08),
-                transparent 28%
-            ),
-            radial-gradient(
-                circle at 5% 35%,
-                rgba(34, 197, 94, 0.05),
-                transparent 25%
-            ),
-            #f8fafc;
-    }
-
-
-    .block-container {
-        max-width: 1180px;
-        padding-top: 2rem;
-        padding-bottom: 4rem;
-    }
-
-
-    #MainMenu {
-        visibility: hidden;
-    }
-
-
-    footer {
-        visibility: hidden;
-    }
-
-
-    header {
-        visibility: hidden;
-    }
-
-
-    /* ========================================================
-       HERO
-       ======================================================== */
-
-    .hero {
-        position: relative;
-        overflow: hidden;
-
-        padding: 4rem 3rem;
-
-        border-radius: 28px;
-
-        background:
-            radial-gradient(
-                circle at 90% 20%,
-                rgba(129, 140, 248, 0.22),
-                transparent 28%
-            ),
-            linear-gradient(
-                135deg,
-                #0f172a 0%,
-                #172554 50%,
-                #312e81 100%
-            );
-
-        box-shadow:
-            0 25px 60px rgba(
-                15,
-                23,
-                42,
-                0.15
-            );
-
-        margin-bottom: 2rem;
-    }
-
-
-    .hero h1 {
-        color: white;
-
-        font-size: clamp(
-            2.5rem,
-            6vw,
-            4.5rem
-        );
-
-        line-height: 1;
-
-        letter-spacing: -0.06em;
-
-        font-weight: 800;
-
-        margin: 0 0 1rem 0;
-    }
-
-
-    .hero p {
-        color: #cbd5e1;
-
-        font-size: 1.05rem;
-
-        line-height: 1.7;
-
-        max-width: 700px;
-
-        margin: 0;
-    }
-
-
-    /* ========================================================
-       SECTION
-       ======================================================== */
-
-    .section-title {
-        color: #0f172a;
-
-        font-size: 2rem;
-
-        font-weight: 800;
-
-        letter-spacing: -0.04em;
-
-        margin-top: 2rem;
-
-        margin-bottom: 0.5rem;
-    }
-
-
-    .section-description {
-        color: #64748b;
-
-        line-height: 1.7;
-
-        max-width: 700px;
-
-        margin-bottom: 1.5rem;
-    }
-
-
-    /* ========================================================
-       FEATURE CARDS
-       ======================================================== */
-
-    .feature {
-        height: 100%;
-
-        padding: 1.5rem;
-
-        border-radius: 20px;
-
-        background: white;
-
-        border: 1px solid #e2e8f0;
-
-        box-shadow:
-            0 10px 30px rgba(
-                15,
-                23,
-                42,
-                0.05
-            );
-    }
-
-
-    .feature h3 {
-        color: #0f172a;
-
-        font-size: 1.05rem;
-
-        font-weight: 750;
-
-        margin-bottom: 0.5rem;
-    }
-
-
-    .feature p {
-        color: #64748b;
-
-        font-size: 0.9rem;
-
-        line-height: 1.6;
-
-        margin: 0;
-    }
-
-
-    /* ========================================================
-       DASHBOARD
-       ======================================================== */
-
-    .dashboard-header {
-        padding: 2rem;
-
-        border-radius: 24px;
-
-        background: white;
-
-        border: 1px solid #e2e8f0;
-
-        margin-bottom: 1.5rem;
-
-        box-shadow:
-            0 10px 30px rgba(
-                15,
-                23,
-                42,
-                0.04
-            );
-    }
-
-
-    .dashboard-header h1 {
-        margin: 0;
-
-        color: #0f172a;
-
-        font-weight: 800;
-    }
-
-
-    .dashboard-header p {
-        color: #64748b;
-
-        margin-top: 0.5rem;
-
-        margin-bottom: 0;
-    }
-
-
-    /* ========================================================
-       FOOTER
-       ======================================================== */
-
-    .exa-footer {
-        text-align: center;
-
-        color: #94a3b8;
-
-        font-size: 0.78rem;
-
-        padding-top: 3rem;
-    }
-
-
-    /* ========================================================
-       BUTTONS
-       ======================================================== */
-
-    .stButton > button {
-        min-height: 48px;
-
-        border-radius: 13px;
-
-        font-weight: 700;
-
-        border: 1px solid #e2e8f0;
-
-        transition:
-            transform 0.15s ease,
-            box-shadow 0.15s ease;
-    }
-
-
-    .stButton > button:hover {
-        transform: translateY(-1px);
-
-        box-shadow:
-            0 10px 25px
-            rgba(
-                15,
-                23,
-                42,
-                0.10
-            );
-    }
-
-
-    /* ========================================================
-       MOBILE
-       ======================================================== */
-
-    @media (max-width: 768px) {
-
-        .block-container {
-            padding-left: 1rem;
-            padding-right: 1rem;
-        }
-
-
-        .hero {
-            padding: 2.5rem 1.5rem;
-
-            border-radius: 22px;
-        }
-
-
-        .hero h1 {
-            font-size: 2.7rem;
-        }
-
-
-        .hero p {
-            font-size: 0.95rem;
-        }
-
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-# ============================================================
-# DATABASE CONFIGURATION CHECK
+# DATABASE CHECK
 # ============================================================
 
 def check_configuration():
 
     try:
-
-        success, result = (
-            test_database_connection()
-        )
+        success, result = test_database_connection()
 
         return success, result
 
@@ -391,53 +52,43 @@ def check_configuration():
 
 
 # ============================================================
-# HOME PAGE
+# HOME
 # ============================================================
 
 def show_home():
 
-    # --------------------------------------------------------
-    # HERO
-    # --------------------------------------------------------
+    st.title("Examina AI 🎓")
 
-    st.markdown(
-        """
-        <section class="hero">
-
-            <h1>
-                Examina AI 🎓
-            </h1>
-
-            <p>
-                Intelligent school management,
-                academic records, examination results
-                and secure digital learning in one platform.
-            </p>
-
-        </section>
-        """,
-        unsafe_allow_html=True,
+    st.subheader(
+        "Intelligent school management, academic records, "
+        "examination results and secure digital learning."
     )
 
+    st.write(
+        "Examina AI brings school administration, "
+        "student records, teachers, classes, subjects "
+        "and examination management into one platform."
+    )
+
+    st.divider()
 
     # --------------------------------------------------------
-    # PRIMARY ACTIONS
+    # ACTION BUTTONS
     # --------------------------------------------------------
 
     col1, col2 = st.columns(2)
-
 
     with col1:
 
         if st.button(
             "🏫 Register your school",
             use_container_width=True,
+            type="primary",
         ):
 
             st.session_state["page"] = "register"
 
             st.rerun()
-
 
     with col2:
 
@@ -450,144 +101,67 @@ def show_home():
 
             st.rerun()
 
+    st.divider()
 
     # --------------------------------------------------------
     # FEATURES
     # --------------------------------------------------------
 
-    st.markdown(
-        """
-        <div class="section-title">
-            Everything your school needs
-        </div>
-
-        <div class="section-description">
-            Examina AI brings school administration,
-            academic records and examination management
-            together in one secure platform.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
+    st.header("Everything your school needs")
 
     col1, col2, col3 = st.columns(3)
 
-
     with col1:
 
-        st.markdown(
-            """
-            <div class="feature">
+        st.subheader("🏫 School Management")
 
-                <h3>
-                    🏫 School Management
-                </h3>
-
-                <p>
-                    Manage students, teachers,
-                    classes and subjects.
-                </p>
-
-            </div>
-            """,
-            unsafe_allow_html=True,
+        st.write(
+            "Manage your school, teachers, students, "
+            "classes and subjects."
         )
-
 
     with col2:
 
-        st.markdown(
-            """
-            <div class="feature">
+        st.subheader("📊 Academic Results")
 
-                <h3>
-                    📊 Academic Results
-                </h3>
-
-                <p>
-                    Manage tests, examinations,
-                    grades and student positions.
-                </p>
-
-            </div>
-            """,
-            unsafe_allow_html=True,
+        st.write(
+            "Manage tests, examinations, grades, "
+            "totals and student positions."
         )
-
 
     with col3:
 
-        st.markdown(
-            """
-            <div class="feature">
+        st.subheader("🤖 AI Examination")
 
-                <h3>
-                    🤖 AI Examination
-                </h3>
-
-                <p>
-                    Scan handwritten answer sheets
-                    and support intelligent marking.
-                </p>
-
-            </div>
-            """,
-            unsafe_allow_html=True,
+        st.write(
+            "Support handwritten examination scanning "
+            "and intelligent marking."
         )
 
+    st.divider()
 
     # --------------------------------------------------------
-    # SECURITY / TRUST
+    # TRUST
     # --------------------------------------------------------
 
-    st.write("")
+    col1, col2, col3 = st.columns(3)
 
+    with col1:
 
-    trust_col1, trust_col2, trust_col3 = (
-        st.columns(3)
-    )
+        st.success("✓ Secure authentication")
 
+    with col2:
 
-    with trust_col1:
+        st.success("✓ School-level data isolation")
 
-        st.success(
-            "✓ Secure authentication"
-        )
+    with col3:
 
+        st.success("✓ Controlled result publishing")
 
-    with trust_col2:
+    st.divider()
 
-        st.success(
-            "✓ School-level data isolation"
-        )
-
-
-    with trust_col3:
-
-        st.success(
-            "✓ Principal-controlled results"
-        )
-
-
-    # --------------------------------------------------------
-    # FOOTER
-    # --------------------------------------------------------
-
-    st.markdown(
-        """
-        <div class="exa-footer">
-
-            Examina AI · Intelligent School Management
-
-            <br>
-
-            Secure academic administration
-            for modern schools.
-
-        </div>
-        """,
-        unsafe_allow_html=True,
+    st.caption(
+        "Examina AI · Intelligent School Management"
     )
 
 
@@ -602,11 +176,6 @@ def show_dashboard():
         {},
     )
 
-
-    # --------------------------------------------------------
-    # SAFELY GET USER EMAIL
-    # --------------------------------------------------------
-
     if isinstance(user, dict):
 
         email = user.get(
@@ -618,37 +187,19 @@ def show_dashboard():
 
         email = "User"
 
+    st.title("Dashboard 🎓")
 
-    # --------------------------------------------------------
-    # HEADER
-    # --------------------------------------------------------
-
-    st.markdown(
-        f"""
-        <div class="dashboard-header">
-
-            <h1>
-                Dashboard
-            </h1>
-
-            <p>
-                Welcome, {email}
-            </p>
-
-        </div>
-        """,
-        unsafe_allow_html=True,
+    st.write(
+        f"Welcome, {email}"
     )
 
+    st.divider()
 
     # --------------------------------------------------------
     # STATISTICS
     # --------------------------------------------------------
 
-    col1, col2, col3, col4 = (
-        st.columns(4)
-    )
-
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
 
@@ -657,14 +208,12 @@ def show_dashboard():
             "0",
         )
 
-
     with col2:
 
         st.metric(
             "Teachers",
             "0",
         )
-
 
     with col3:
 
@@ -673,7 +222,6 @@ def show_dashboard():
             "0",
         )
 
-
     with col4:
 
         st.metric(
@@ -681,19 +229,11 @@ def show_dashboard():
             "0",
         )
 
-
-    # --------------------------------------------------------
-    # INFORMATION
-    # --------------------------------------------------------
-
-    st.write("")
-
+    st.divider()
 
     st.info(
-        "Your Examina AI workspace is ready. "
-        "School management modules will appear here."
+        "Your Examina AI workspace is ready."
     )
-
 
     # --------------------------------------------------------
     # LOGOUT
@@ -717,24 +257,21 @@ def show_dashboard():
 
 def show_register():
 
-    st.title(
-        "Register your school"
-    )
-
+    st.title("Register your school 🏫")
 
     st.write(
-        "Create your school's Examina AI workspace."
+        "Create your school's secure Examina AI workspace."
     )
 
+    st.divider()
 
     st.info(
-        "The school registration form will be "
-        "connected to your Supabase school tables."
+        "The school registration form will be connected "
+        "to your Supabase school tables."
     )
 
-
     if st.button(
-        "← Back",
+        "← Back to home",
         use_container_width=True,
     ):
 
@@ -744,35 +281,22 @@ def show_register():
 
 
 # ============================================================
-# APPLICATION ROUTER
+# ROUTER
 # ============================================================
 
 def main():
 
     # --------------------------------------------------------
-    # CHECK DATABASE
+    # DATABASE CONNECTION
     # --------------------------------------------------------
 
-    success, result = (
-        check_configuration()
-    )
-
+    success, result = check_configuration()
 
     if not success:
 
         st.error(
             "Unable to connect to the Examina database."
         )
-
-        st.error(
-            "Please check your Streamlit database "
-            "configuration."
-        )
-
-        # ----------------------------------------------------
-        # Do not expose credentials.
-        # Only show the actual technical error.
-        # ----------------------------------------------------
 
         with st.expander(
             "Technical details"
@@ -784,16 +308,14 @@ def main():
 
         st.stop()
 
-
     # --------------------------------------------------------
-    # GET CURRENT PAGE
+    # CURRENT PAGE
     # --------------------------------------------------------
 
     page = st.session_state.get(
         "page",
         "home",
     )
-
 
     # --------------------------------------------------------
     # LOGIN
@@ -804,7 +326,6 @@ def main():
         show_login()
 
         return
-
 
     # --------------------------------------------------------
     # DASHBOARD
@@ -820,14 +341,12 @@ def main():
 
             return
 
-
         show_dashboard()
 
         return
 
-
     # --------------------------------------------------------
-    # REGISTER
+    # REGISTRATION
     # --------------------------------------------------------
 
     if page == "register":
@@ -835,7 +354,6 @@ def main():
         show_register()
 
         return
-
 
     # --------------------------------------------------------
     # HOME
@@ -845,7 +363,7 @@ def main():
 
 
 # ============================================================
-# APPLICATION ENTRY POINT
+# START
 # ============================================================
 
 if __name__ == "__main__":
