@@ -88,21 +88,9 @@ def get_school_user_profile(user_id):
     response = (
         supabase
         .table("school_users")
-        .select(
-            "id,"
-            "school_id,"
-            "full_name,"
-            "role,"
-            "is_active"
-        )
-        .eq(
-            "id",
-            user_id
-        )
-        .eq(
-            "is_active",
-            True
-        )
+        .select("id,school_id,full_name,role,is_active")
+        .eq("id", user_id)
+        .eq("is_active", True)
         .limit(1)
         .execute()
     )
@@ -118,18 +106,9 @@ def get_school_user_profile(user_id):
         supabase
         .table("schools")
         .select("*")
-        .eq(
-            "id",
-            profile["school_id"]
-        )
-        .eq(
-            "verification_status",
-            "approved"
-        )
-        .eq(
-            "is_active",
-            True
-        )
+        .eq("id", profile["school_id"])
+        .eq("verification_status", "approved")
+        .eq("is_active", True)
         .limit(1)
         .execute()
     )
@@ -158,11 +137,8 @@ def get_school_account_eligibility(
     response = supabase.rpc(
         "get_school_account_eligibility",
         {
-            "p_registration_number":
-                registration_number.strip(),
-
-            "p_email":
-                email.strip().lower(),
+            "p_registration_number": registration_number.strip(),
+            "p_email": email.strip().lower(),
         }
     ).execute()
 
@@ -188,11 +164,8 @@ def create_school_account(
     supabase = get_supabase_client()
 
     response = supabase.auth.sign_up({
-
         "email": email.strip().lower(),
-
         "password": password,
-
         "options": {
             "data": {
                 "account_type": "school",
@@ -214,9 +187,7 @@ def login_school(email, password):
     supabase = get_supabase_client()
 
     response = supabase.auth.sign_in_with_password({
-
         "email": email.strip().lower(),
-
         "password": password,
     })
 
