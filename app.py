@@ -1,11 +1,14 @@
 # ============================================================
 # EXAMINA AI
-# MAIN APPLICATION
+# MAIN APPLICATION ROUTER
 # ============================================================
 
 import streamlit as st
 
 from pages.register import show_register
+from pages.admin.login import show_admin_login
+from pages.admin.dashboard import show_admin_dashboard
+from pages.admin.verification import show_verification
 
 
 # ============================================================
@@ -21,95 +24,27 @@ st.set_page_config(
 
 
 # ============================================================
-# GLOBAL CSS
+# SESSION STATE
+# ============================================================
+
+if "admin_authenticated" not in st.session_state:
+    st.session_state.admin_authenticated = False
+
+if "admin_user" not in st.session_state:
+    st.session_state.admin_user = None
+
+
+# ============================================================
+# BRANDING
 # ============================================================
 
 st.markdown(
     """
     <style>
 
-    @import url(
-        'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
-    );
-
-    html, body, [class*="css"] {
-        font-family: "Inter", sans-serif;
-    }
-
-    .stApp {
-        background: #f8fafc;
-    }
-
     .block-container {
-        max-width: 1100px;
+        max-width: 1200px;
         padding-top: 2rem;
-        padding-bottom: 4rem;
-    }
-
-    #MainMenu {
-        visibility: hidden;
-    }
-
-    header {
-        visibility: hidden;
-    }
-
-    footer {
-        visibility: hidden;
-    }
-
-    /* ========================================================
-       BRAND
-       ======================================================== */
-
-    .exa-brand {
-        display: flex;
-        align-items: center;
-        gap: 11px;
-        margin-bottom: 3rem;
-    }
-
-    .exa-mark {
-        width: 42px;
-        height: 42px;
-        border-radius: 12px;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        background: #111827;
-        color: white;
-
-        font-size: 20px;
-
-        box-shadow:
-            0 8px 20px rgba(15, 23, 42, 0.12);
-    }
-
-    .exa-name {
-        font-size: 1.25rem;
-        font-weight: 800;
-        letter-spacing: -0.04em;
-        color: #111827;
-    }
-
-    .exa-ai {
-        color: #4f46e5;
-    }
-
-    /* ========================================================
-       MOBILE
-       ======================================================== */
-
-    @media (max-width: 768px) {
-
-        .block-container {
-            padding-left: 1rem;
-            padding-right: 1rem;
-            padding-top: 1rem;
-        }
-
     }
 
     </style>
@@ -119,21 +54,186 @@ st.markdown(
 
 
 # ============================================================
-# APPLICATION
+# ADMIN PORTAL
 # ============================================================
 
-def main():
+def admin_portal():
+
+    if not st.session_state.admin_authenticated:
+
+        show_admin_login()
+
+        return
 
     # --------------------------------------------------------
-    # REGISTRATION IS THE FIRST PAGE
+    # ADMIN SIDEBAR
     # --------------------------------------------------------
+
+    st.sidebar.title("Examina AI")
+
+    st.sidebar.caption("Admin Portal")
+
+    page = st.sidebar.radio(
+        "Navigation",
+        [
+            "Dashboard",
+            "School Verification",
+        ],
+    )
+
+    st.sidebar.divider()
+
+    if page == "Dashboard":
+
+        show_admin_dashboard()
+
+    elif page == "School Verification":
+
+        show_verification()
+
+
+# ============================================================
+# SCHOOL PORTAL
+# ============================================================
+
+def school_portal():
+
+    st.title("School Portal")
+
+    st.info(
+        "School login will be connected next."
+    )
+
+    st.divider()
+
+    st.subheader(
+        "New School?"
+    )
+
+    if st.button(
+        "Register School",
+        type="primary",
+        use_container_width=True,
+    ):
+
+        st.session_state.portal = "register"
+
+        st.rerun()
+
+
+# ============================================================
+# SCHOOL REGISTRATION
+# ============================================================
+
+def registration_portal():
 
     show_register()
 
 
 # ============================================================
-# START
+# MAIN ROUTER
+# ============================================================
+
+def main():
+
+    # --------------------------------------------------------
+    # DEFAULT PORTAL
+    # --------------------------------------------------------
+
+    if "portal" not in st.session_state:
+
+        st.session_state.portal = "home"
+
+    portal = st.session_state.portal
+
+    # --------------------------------------------------------
+    # HOME
+    # --------------------------------------------------------
+
+    if portal == "home":
+
+        st.title("Examina AI")
+
+        st.subheader(
+            "School Examination & Management Platform"
+        )
+
+        st.write(
+            "Choose your portal."
+        )
+
+        st.divider()
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            st.subheader(
+                "🏫 School Portal"
+            )
+
+            st.write(
+                "Access your school's examination "
+                "and management system."
+            )
+
+            if st.button(
+                "Enter School Portal",
+                use_container_width=True,
+            ):
+
+                st.session_state.portal = "school"
+
+                st.rerun()
+
+        with col2:
+
+            st.subheader(
+                "🔐 Admin Portal"
+            )
+
+            st.write(
+                "For authorized Examina AI administrators."
+            )
+
+            if st.button(
+                "Enter Admin Portal",
+                use_container_width=True,
+            ):
+
+                st.session_state.portal = "admin"
+
+                st.rerun()
+
+    # --------------------------------------------------------
+    # ADMIN
+    # --------------------------------------------------------
+
+    elif portal == "admin":
+
+        admin_portal()
+
+    # --------------------------------------------------------
+    # SCHOOL
+    # --------------------------------------------------------
+
+    elif portal == "school":
+
+        school_portal()
+
+    # --------------------------------------------------------
+    # REGISTRATION
+    # --------------------------------------------------------
+
+    elif portal == "register":
+
+        registration_portal()
+
+
+# ============================================================
+# RUN
 # ============================================================
 
 if __name__ == "__main__":
+
     main()
