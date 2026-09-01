@@ -59,7 +59,7 @@ def get_states():
 
 
 # ============================================================
-# GET LGAS
+# GET LGAS BY STATE
 # ============================================================
 
 def get_lgas(state_id):
@@ -69,13 +69,8 @@ def get_lgas(state_id):
     response = (
         supabase
         .table("local_governments")
-        .select(
-            "id,name,code,state_id"
-        )
-        .eq(
-            "state_id",
-            state_id
-        )
+        .select("id,name,code,state_id")
+        .eq("state_id", state_id)
         .order("name")
         .execute()
     )
@@ -89,26 +84,30 @@ def get_lgas(state_id):
 
 def create_school(
     name,
-    short_name,
-    school_type,
-    state_id,
+    registration_number,
+    state,
+    local_government,
     lga_id,
-    address,
-    phone,
-    email,
+    address="",
+    phone="",
+    email="",
+    motto="",
 ):
 
     supabase = get_db()
 
     school_data = {
         "name": name,
-        "short_name": short_name,
-        "school_type": school_type,
-        "state_id": state_id,
+        "registration_number": registration_number,
+        "state": state,
+        "local_government": local_government,
         "lga_id": lga_id,
         "address": address,
         "phone": phone,
         "email": email,
+        "motto": motto,
+        "verification_status": "pending",
+        "is_active": True,
     }
 
     response = (
@@ -118,7 +117,7 @@ def create_school(
         .execute()
     )
 
-    return response.data
+    return response.data or []
 
 
 # ============================================================
@@ -133,10 +132,7 @@ def get_school(school_id):
         supabase
         .table("schools")
         .select("*")
-        .eq(
-            "id",
-            school_id
-        )
+        .eq("id", school_id)
         .limit(1)
         .execute()
     )
@@ -147,3 +143,22 @@ def get_school(school_id):
         return None
 
     return data[0]
+
+
+# ============================================================
+# GET SCHOOLS
+# ============================================================
+
+def get_schools():
+
+    supabase = get_db()
+
+    response = (
+        supabase
+        .table("schools")
+        .select("*")
+        .order("name")
+        .execute()
+    )
+
+    return response.data or []
