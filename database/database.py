@@ -7,11 +7,10 @@ from database.supabase_client import get_supabase_client
 
 
 # ============================================================
-# GET DATABASE CLIENT
+# DATABASE CLIENT
 # ============================================================
 
 def get_db():
-
     return get_supabase_client()
 
 
@@ -22,7 +21,6 @@ def get_db():
 def test_database_connection():
 
     try:
-
         supabase = get_db()
 
         response = (
@@ -36,7 +34,6 @@ def test_database_connection():
         return True, response.data
 
     except Exception as error:
-
         return False, str(error)
 
 
@@ -60,7 +57,7 @@ def get_states():
 
 
 # ============================================================
-# GET LGAS
+# GET LGAs
 # ============================================================
 
 def get_lgas(state_id):
@@ -70,13 +67,8 @@ def get_lgas(state_id):
     response = (
         supabase
         .table("local_governments")
-        .select(
-            "id,name,code,state_id"
-        )
-        .eq(
-            "state_id",
-            state_id
-        )
+        .select("id,name,code,state_id")
+        .eq("state_id", state_id)
         .order("name")
         .execute()
     )
@@ -85,7 +77,30 @@ def get_lgas(state_id):
 
 
 # ============================================================
-# REGISTER SCHOOL
+# CHECK SCHOOL REGISTRATION NUMBER
+# ============================================================
+
+def school_exists(registration_number):
+
+    supabase = get_db()
+
+    response = (
+        supabase
+        .table("schools")
+        .select("id")
+        .eq(
+            "registration_number",
+            registration_number
+        )
+        .limit(1)
+        .execute()
+    )
+
+    return bool(response.data)
+
+
+# ============================================================
+# CREATE SCHOOL
 # ============================================================
 
 def create_school(
@@ -93,10 +108,16 @@ def create_school(
     registration_number,
     local_government,
     state,
-    address,
-    phone,
-    email,
-    lga_id,
+    address="",
+    phone="",
+    email="",
+    motto="",
+    logo_url=None,
+    ministry_certificate_url=None,
+    verification_status="pending",
+    is_active=False,
+    lga_id=None,
+    administrative_area_id=None,
 ):
 
     supabase = get_db()
@@ -106,12 +127,16 @@ def create_school(
         "registration_number": registration_number,
         "local_government": local_government,
         "state": state,
-        "address": address,
-        "phone": phone,
-        "email": email,
+        "address": address or None,
+        "phone": phone or None,
+        "email": email or None,
+        "motto": motto or None,
+        "logo_url": logo_url,
+        "ministry_certificate_url": ministry_certificate_url,
+        "verification_status": verification_status,
+        "is_active": is_active,
         "lga_id": lga_id,
-        "verification_status": "pending",
-        "is_active": True,
+        "administrative_area_id": administrative_area_id,
     }
 
     response = (
@@ -121,7 +146,7 @@ def create_school(
         .execute()
     )
 
-    return response.data or []
+    return response.data
 
 
 # ============================================================
@@ -136,10 +161,7 @@ def get_school(school_id):
         supabase
         .table("schools")
         .select("*")
-        .eq(
-            "id",
-            school_id
-        )
+        .eq("id", school_id)
         .limit(1)
         .execute()
     )
