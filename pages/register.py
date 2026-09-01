@@ -7,147 +7,158 @@ import streamlit as st
 
 
 # ============================================================
-# REGISTRATION PAGE
+# PAGE
 # ============================================================
 
 def show_register():
+    """
+    Display the school registration page.
 
-    # --------------------------------------------------------
-    # PAGE-SPECIFIC CSS
-    # --------------------------------------------------------
+    This page only handles the user interface.
+    Database operations will be added separately.
+    """
 
-    st.markdown(
-        """
-        <style>
-
-        .register-eyebrow {
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            color: #4f46e5;
-            margin-bottom: 1rem;
-        }
-
-        .register-title {
-            font-size: 3.5rem;
-            line-height: 1.05;
-            font-weight: 800;
-            letter-spacing: -0.05em;
-            color: #111827;
-            margin: 0 0 1.2rem 0;
-        }
-
-        .register-description {
-            font-size: 1.05rem;
-            line-height: 1.7;
-            color: #64748b;
-            max-width: 550px;
-            margin-bottom: 2rem;
-        }
-
-        @media (max-width: 768px) {
-
-            .register-title {
-                font-size: 2.6rem;
-            }
-
-        }
-
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-    # --------------------------------------------------------
+    # ========================================================
     # BRAND
-    # --------------------------------------------------------
+    # ========================================================
 
-    st.markdown(
-        """
-        <div class="exa-brand">
-
-            <div class="exa-mark">
-                🎓
-            </div>
-
-            <div class="exa-name">
-                Examina
-                <span class="exa-ai">AI</span>
-            </div>
-
-        </div>
-        """,
-        unsafe_allow_html=True,
+    brand_col1, brand_col2 = st.columns(
+        [0.06, 0.94],
+        vertical_alignment="center",
     )
 
+    with brand_col1:
+        st.markdown(
+            "## 🎓"
+        )
 
-    # --------------------------------------------------------
-    # REGISTRATION HEADER
-    # --------------------------------------------------------
+    with brand_col2:
+        st.markdown(
+            "## Examina AI"
+        )
 
-    st.markdown(
-        """
-        <div class="register-eyebrow">
-            School registration
-        </div>
+    st.write("")
 
-        <h1 class="register-title">
-            Bring your school<br>
-            into Examina.
-        </h1>
+    # ========================================================
+    # PAGE HEADER
+    # ========================================================
 
-        <p class="register-description">
-            Create your school's secure workspace
-            for managing students, teachers,
-            academic records, examinations
-            and results.
-        </p>
-        """,
-        unsafe_allow_html=True,
+    st.caption(
+        "SCHOOL REGISTRATION"
     )
 
+    st.title(
+        "Bring your school\ninto Examina."
+    )
 
-    # --------------------------------------------------------
-    # REGISTRATION FORM
-    # --------------------------------------------------------
+    st.write(
+        """
+        Create your school's secure workspace for managing
+        students, teachers, academic records, examinations
+        and results.
+        """
+    )
 
+    st.write("")
     st.divider()
 
-    st.subheader("School information")
+    # ========================================================
+    # REGISTRATION FORM
+    # ========================================================
 
-    school_name = st.text_input(
-        "School name",
-        placeholder="Example: Bright Future College",
+    st.subheader(
+        "School information"
     )
 
-    registration_number = st.text_input(
-        "Registration number",
-        placeholder="Enter your school registration number",
-    )
-
-    address = st.text_area(
-        "School address",
-        placeholder="Enter your school's full address",
-    )
-
-    phone = st.text_input(
-        "Phone number",
-        placeholder="08012345678",
-    )
-
-    email = st.text_input(
-        "School email",
-        placeholder="school@example.com",
-    )
-
-    if st.button(
-        "Continue →",
-        use_container_width=True,
-        type="primary",
+    with st.form(
+        "school_registration_form",
+        clear_on_submit=False,
     ):
-        st.info(
-            "Registration form is ready. "
-            "Next we will connect the form to Supabase."
+
+        school_name = st.text_input(
+            "School name *",
+            placeholder="Example: Bright Future College",
         )
+
+        registration_number = st.text_input(
+            "Registration number *",
+            placeholder="Enter your school registration number",
+        )
+
+        address = st.text_area(
+            "School address",
+            placeholder="Enter your school's full address",
+            height=100,
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            phone = st.text_input(
+                "Phone number",
+                placeholder="08012345678",
+            )
+
+        with col2:
+
+            email = st.text_input(
+                "School email",
+                placeholder="school@example.com",
+            )
+
+        submitted = st.form_submit_button(
+            "Continue →",
+            use_container_width=True,
+            type="primary",
+        )
+
+    # ========================================================
+    # FORM VALIDATION
+    # ========================================================
+
+    if submitted:
+
+        errors = []
+
+        if not school_name.strip():
+            errors.append(
+                "School name is required."
+            )
+
+        if not registration_number.strip():
+            errors.append(
+                "Registration number is required."
+            )
+
+        if errors:
+
+            for error in errors:
+                st.error(error)
+
+            return
+
+        # ====================================================
+        # TEMPORARY SUCCESS
+        # ====================================================
+
+        # Database registration will be connected in a
+        # separate service layer.
+
+        st.success(
+            "School information saved successfully. "
+            "You can now continue with the next step."
+        )
+
+        # Store temporary registration data safely
+        # in the Streamlit session.
+
+        st.session_state["registration_data"] = {
+            "name": school_name.strip(),
+            "registration_number": (
+                registration_number.strip()
+            ),
+            "address": address.strip(),
+            "phone": phone.strip(),
+            "email": email.strip(),
+        }
