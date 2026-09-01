@@ -11,32 +11,85 @@ from supabase import create_client
 # NIGERIA ADMINISTRATIVE DATA SEEDER
 # ============================================================
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get(
-    "SUPABASE_SERVICE_ROLE_KEY"
-)
 
-if not SUPABASE_URL:
-    raise RuntimeError("SUPABASE_URL environment variable is missing.")
-
-if not SUPABASE_SERVICE_ROLE_KEY:
-    raise RuntimeError(
-        "SUPABASE_SERVICE_ROLE_KEY environment variable is missing."
-    )
-
+# ============================================================
+# FILE LOCATION
+# ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
 JSON_FILE = BASE_DIR / "all-lga.json"
 
 
+# ============================================================
+# SUPABASE CREDENTIALS
+#
+# Streamlit Secrets:
+#
+# SUPABASE_URL = "https://xxxxx.supabase.co"
+# SUPABASE_KEY = "your-secret-key"
+#
+# The same names are also supported as environment variables.
+# ============================================================
+
+def get_supabase_credentials():
+
+    # --------------------------------------------------------
+    # STREAMLIT CLOUD
+    # --------------------------------------------------------
+
+    try:
+
+        import streamlit as st
+
+        url = st.secrets.get("SUPABASE_URL")
+        key = st.secrets.get("SUPABASE_KEY")
+
+        if url and key:
+
+            return url, key
+
+    except Exception:
+        pass
+
+
+    # --------------------------------------------------------
+    # ENVIRONMENT VARIABLES
+    # --------------------------------------------------------
+
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
+
+    if not url:
+
+        raise RuntimeError(
+            "SUPABASE_URL is not configured.\n\n"
+            "Add SUPABASE_URL to your Streamlit Secrets."
+        )
+
+    if not key:
+
+        raise RuntimeError(
+            "SUPABASE_KEY is not configured.\n\n"
+            "Add SUPABASE_KEY to your Streamlit Secrets."
+        )
+
+    return url, key
+
+
+# ============================================================
+# CREATE SUPABASE CLIENT
+# ============================================================
+
+SUPABASE_URL, SUPABASE_KEY = get_supabase_credentials()
+
 supabase = create_client(
     SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_KEY,
 )
 
 
 # ============================================================
-# EXPECTED STATES
+# EXPECTED NIGERIAN STATES + FCT
 # ============================================================
 
 EXPECTED_STATES = {
@@ -85,6 +138,7 @@ EXPECTED_STATES = {
 # ============================================================
 
 def clean(value):
+
     if value is None:
         return ""
 
@@ -92,6 +146,7 @@ def clean(value):
 
 
 def normalize(value):
+
     return clean(value).casefold()
 
 
@@ -101,14 +156,18 @@ def normalize(value):
 
 def load_json():
 
+    print()
+    print("Loading LGA JSON dataset...")
+
     if not JSON_FILE.exists():
 
         raise FileNotFoundError(
-            f"\nMissing file:\n{JSON_FILE}\n"
-            "Make sure all-lga.json is in the same folder as seedlga.py."
+            f"\nMissing file:\n{JSON_FILE}\n\n"
+            "Expected structure:\n"
+            "services/\n"
+            "├── seedlga.py\n"
+            "└── all-lga.json"
         )
-
-    print(f"Loading: {JSON_FILE}")
 
     try:
 
@@ -140,20 +199,63 @@ def load_json():
 
 
 # ============================================================
-# LOAD STATES FROM DATABASE
+# TEST SUPABASE CONNECTION
+# ============================================================
+
+def test_connection():
+
+    print()
+    print("Testing Supabase connection...")
+
+    try:
+
+        response = (
+            supabase
+            .table("states")
+            .select("id,name,code")
+            .limit(1)
+            .execute()
+        )
+
+        if response.data is None:
+
+            raise RuntimeError(
+                "Supabase returned no data."
+            )
+
+    except Exception as error:
+
+        raise RuntimeError(
+            "Could not connect to Supabase.\n\n"
+            f"{error}"
+        )
+
+    print("Supabase connection: PASS")
+
+
+# ============================================================
+# LOAD STATES
 # ============================================================
 
 def load_states():
 
     print()
-    print("Loading states from database...")
+    print("Loading states from Supabase...")
 
-    response = (
-        supabase
-        .table("states")
-        .select("id,name,code")
-        .execute()
-    )
+    try:
+
+        response = (
+            supabase
+            .table("states")
+            .select("id,name,code")
+            .execute()
+        )
+
+    except Exception as error:
+
+        raise RuntimeError(
+            f"Failed to load states from Supabase:\n{error}"
+        )
 
     states = response.data or []
 
@@ -165,52 +267,83 @@ def load_states():
 
         raise RuntimeError(
             f"Expected 37 states/FCT records, "
-            f"but database contains {len(states)}."
+            f"but found {len(states)}."
         )
 
     state_map = {}
 
     for state in states:
 
-        name = clean(state.get("name"))
+        state_id = clean(
+            state.get("id")
+        )
 
-        if not name:
+        state_name = clean(
+            state.get("name")
+        )
+
+        state_code = clean(
+            state.get("code")
+        )
+
+        if not state_id:
+
             raise RuntimeError(
-                "A state record has no name."
+                f"State has no UUID: {state}"
             )
 
-        key = normalize(name)
+        if not state_name:
+
+            raise RuntimeError(
+                f"State has no name: {state}"
+            )
+
+        if not state_code:
+
+            raise RuntimeError(
+                f"State has no code: {state}"
+            )
+
+        key = normalize(state_name)
 
         if key in state_map:
 
             raise RuntimeError(
-                f"Duplicate state in database: {name}"
+                f"Duplicate state name:\n{state_name}"
             )
 
-        state_map[key] = state
+        state_map[key] = {
+            "id": state_id,
+            "name": state_name,
+            "code": state_code,
+        }
+
+    # --------------------------------------------------------
+    # CHECK EXPECTED STATES
+    # --------------------------------------------------------
 
     missing = []
 
-    for expected in EXPECTED_STATES:
+    for expected_state in EXPECTED_STATES:
 
-        if normalize(expected) not in state_map:
+        if normalize(expected_state) not in state_map:
 
-            missing.append(expected)
+            missing.append(expected_state)
 
     if missing:
 
         raise RuntimeError(
-            "Database is missing these states/FCT:\n\n"
+            "Supabase is missing these states/FCT:\n\n"
             + "\n".join(sorted(missing))
         )
 
-    print("37 states/FCT verified.")
+    print("37 states/FCT verified: PASS")
 
     return state_map
 
 
 # ============================================================
-# EXTRACT LGAS
+# EXTRACT LGAS FROM JSON
 # ============================================================
 
 def extract_lgas(data):
@@ -223,14 +356,16 @@ def extract_lgas(data):
     for item in data:
 
         # ----------------------------------------------------
-        # We only want level 2 = Local Government
+        # LEVEL 2 = LOCAL GOVERNMENT
         # ----------------------------------------------------
 
         if item.get("level") != 2:
+
             continue
 
+
         # ----------------------------------------------------
-        # NAME
+        # LGA NAME
         # ----------------------------------------------------
 
         name_object = item.get("name") or {}
@@ -244,10 +379,13 @@ def extract_lgas(data):
 
         else:
 
-            lga_name = clean(name_object)
+            lga_name = clean(
+                name_object
+            )
+
 
         # ----------------------------------------------------
-        # CODE
+        # LGA CODE
         # ----------------------------------------------------
 
         code_object = item.get("code") or {}
@@ -261,10 +399,13 @@ def extract_lgas(data):
 
         else:
 
-            lga_code = clean(code_object)
+            lga_code = clean(
+                code_object
+            )
+
 
         # ----------------------------------------------------
-        # PARENT
+        # PARENT STATE
         # ----------------------------------------------------
 
         parent = item.get("parent") or {}
@@ -273,7 +414,10 @@ def extract_lgas(data):
 
             parent = {}
 
-        parent_name_object = parent.get("name") or {}
+
+        parent_name_object = (
+            parent.get("name") or {}
+        )
 
         if isinstance(parent_name_object, dict):
 
@@ -284,11 +428,10 @@ def extract_lgas(data):
 
         else:
 
-            state_name = clean(parent_name_object)
+            state_name = clean(
+                parent_name_object
+            )
 
-        state_source_id = clean(
-            parent.get("id")
-        )
 
         # ----------------------------------------------------
         # VALIDATION
@@ -297,31 +440,36 @@ def extract_lgas(data):
         if not lga_name:
 
             raise RuntimeError(
-                f"LGA without name:\n{item}"
+                f"LGA has no name:\n{item}"
             )
 
         if not lga_code:
 
             raise RuntimeError(
-                f"LGA without code: {lga_name}"
+                f"LGA has no code:\n{lga_name}"
             )
 
         if not state_name:
 
             raise RuntimeError(
-                f"LGA without parent state: {lga_name}"
+                f"LGA has no parent state:\n{lga_name}"
             )
+
 
         # ----------------------------------------------------
         # SAVE
         # ----------------------------------------------------
 
         records.append({
+
             "source_id": lga_code,
+
             "name": lga_name,
+
             "state_name": state_name,
-            "state_source_id": state_source_id,
+
         })
+
 
     print(
         f"LGA records discovered: {len(records)}"
@@ -339,15 +487,20 @@ def validate_lgas(records, states):
     print()
     print("Validating LGA dataset...")
 
+    # --------------------------------------------------------
+    # TOTAL COUNT
+    # --------------------------------------------------------
+
     if len(records) != 774:
 
         raise RuntimeError(
-            f"Expected exactly 774 LGAs. "
-            f"Found {len(records)}."
+            f"Expected exactly 774 LGAs, "
+            f"but found {len(records)}."
         )
 
+
     # --------------------------------------------------------
-    # CHECK DUPLICATE SOURCE CODES
+    # DUPLICATE SOURCE CODES
     # --------------------------------------------------------
 
     codes = set()
@@ -364,8 +517,9 @@ def validate_lgas(records, states):
 
         codes.add(code)
 
+
     # --------------------------------------------------------
-    # CHECK STATE RELATIONSHIPS
+    # STATE RELATIONSHIPS
     # --------------------------------------------------------
 
     state_counts = {}
@@ -379,7 +533,7 @@ def validate_lgas(records, states):
         if state_key not in states:
 
             raise RuntimeError(
-                f"Unknown state:\n"
+                f"Unknown state in JSON:\n\n"
                 f"LGA: {record['name']}\n"
                 f"State: {record['state_name']}"
             )
@@ -388,16 +542,18 @@ def validate_lgas(records, states):
             state_counts.get(state_key, 0) + 1
         )
 
+
     # --------------------------------------------------------
-    # CHECK ALL 37 STATES
+    # ALL 37 STATES
     # --------------------------------------------------------
 
     if len(state_counts) != 37:
 
         raise RuntimeError(
-            f"Expected 37 state groups. "
-            f"Found {len(state_counts)}."
+            f"Expected 37 state groups, "
+            f"but found {len(state_counts)}."
         )
+
 
     print("LGA count: PASS")
     print("Duplicate LGA code check: PASS")
@@ -424,14 +580,25 @@ def validate_lgas(records, states):
 def load_existing_lgas():
 
     print()
-    print("Loading existing LGAs...")
+    print("Checking existing LGAs in Supabase...")
 
-    response = (
-        supabase
-        .table("local_governments")
-        .select("id,state_id,name,code")
-        .execute()
-    )
+    try:
+
+        response = (
+            supabase
+            .table("local_governments")
+            .select(
+                "id,state_id,name,code"
+            )
+            .execute()
+        )
+
+    except Exception as error:
+
+        raise RuntimeError(
+            "Could not read local_governments table:\n"
+            f"{error}"
+        )
 
     existing = response.data or []
 
@@ -443,31 +610,47 @@ def load_existing_lgas():
 
 
 # ============================================================
-# BUILD INSERT LIST
+# PREPARE INSERTS
 # ============================================================
 
-def prepare_inserts(records, states, existing):
+def prepare_inserts(
+    records,
+    states,
+    existing,
+):
+
+    print()
+    print("Preparing LGA records for insertion...")
 
     existing_keys = set()
 
     for row in existing:
 
         state_id = row.get("state_id")
-        name = normalize(row.get("name"))
+
+        name = normalize(
+            row.get("name")
+        )
 
         if state_id and name:
 
             existing_keys.add(
-                (state_id, name)
+                (
+                    state_id,
+                    name,
+                )
             )
+
 
     missing = []
 
     for record in records:
 
-        state = states[
-            normalize(record["state_name"])
-        ]
+        state_key = normalize(
+            record["state_name"]
+        )
+
+        state = states[state_key]
 
         state_id = state["id"]
 
@@ -477,13 +660,28 @@ def prepare_inserts(records, states, existing):
         )
 
         if key in existing_keys:
+
             continue
 
         missing.append({
+
             "state_id": state_id,
+
             "name": record["name"],
+
             "code": record["source_id"],
+
         })
+
+
+    print(
+        f"LGAs already present: "
+        f"{len(records) - len(missing)}"
+    )
+
+    print(
+        f"LGAs to insert: {len(missing)}"
+    )
 
     return missing
 
@@ -492,29 +690,17 @@ def prepare_inserts(records, states, existing):
 # INSERT LGAS
 # ============================================================
 
-def insert_lgas(records, states):
-
-    existing = load_existing_lgas()
-
-    missing = prepare_inserts(
-        records,
-        states,
-        existing,
-    )
-
-    print(
-        f"LGAs to insert: {len(missing)}"
-    )
+def insert_lgas(missing):
 
     if not missing:
 
         print()
         print(
-            "Nothing to insert. "
-            "All dataset LGAs already exist."
+            "All 774 LGAs already exist in Supabase."
         )
 
         return
+
 
     print()
     print("Starting LGA import...")
@@ -529,9 +715,19 @@ def insert_lgas(records, states):
         batch_size,
     ):
 
+        end = min(
+            start + batch_size,
+            total,
+        )
+
         batch = missing[
-            start:start + batch_size
+            start:end
         ]
+
+        print(
+            f"Inserting LGAs "
+            f"{start + 1}-{end}..."
+        )
 
         try:
 
@@ -545,22 +741,17 @@ def insert_lgas(records, states):
         except Exception as error:
 
             raise RuntimeError(
-                f"\nFailed inserting batch "
-                f"{start + 1}-{min(start + batch_size, total)}:\n"
+                f"\nFailed inserting LGAs "
+                f"{start + 1}-{end}:\n\n"
                 f"{error}"
             )
-
-        end = min(
-            start + batch_size,
-            total,
-        )
 
         print(
             f"Inserted {end}/{total}"
         )
 
     print()
-    print("LGA insertion completed.")
+    print("LGA insertion completed successfully.")
 
 
 # ============================================================
@@ -574,12 +765,22 @@ def verify():
     print("FINAL DATABASE VERIFICATION")
     print("=" * 60)
 
-    response = (
-        supabase
-        .table("local_governments")
-        .select("id,state_id,name,code")
-        .execute()
-    )
+    try:
+
+        response = (
+            supabase
+            .table("local_governments")
+            .select(
+                "id,state_id,name,code"
+            )
+            .execute()
+        )
+
+    except Exception as error:
+
+        raise RuntimeError(
+            f"Could not verify local_governments:\n{error}"
+        )
 
     rows = response.data or []
 
@@ -589,6 +790,11 @@ def verify():
         f"Total local-government records: {total}"
     )
 
+
+    # --------------------------------------------------------
+    # TOTAL COUNT
+    # --------------------------------------------------------
+
     if total != 774:
 
         raise RuntimeError(
@@ -596,8 +802,13 @@ def verify():
             f"found {total}."
         )
 
+    print(
+        "Total count check: PASS"
+    )
+
+
     # --------------------------------------------------------
-    # DUPLICATE CHECK
+    # STATE/LGA DUPLICATES
     # --------------------------------------------------------
 
     keys = set()
@@ -612,7 +823,8 @@ def verify():
         if key in keys:
 
             raise RuntimeError(
-                "FAILED: duplicate state/LGA combination: "
+                "FAILED: duplicate "
+                "state/LGA combination:\n"
                 f"{row['name']}"
             )
 
@@ -622,26 +834,31 @@ def verify():
         "Duplicate state/LGA check: PASS"
     )
 
+
     # --------------------------------------------------------
-    # CODE CHECK
+    # LGA CODE CHECK
     # --------------------------------------------------------
 
     codes = set()
 
     for row in rows:
 
-        code = clean(row.get("code"))
+        code = clean(
+            row.get("code")
+        )
 
         if not code:
+
             raise RuntimeError(
-                f"FAILED: LGA has no code: "
+                f"FAILED: LGA has no code:\n"
                 f"{row['name']}"
             )
 
         if code in codes:
 
             raise RuntimeError(
-                f"FAILED: duplicate LGA code: {code}"
+                f"FAILED: duplicate LGA code:\n"
+                f"{code}"
             )
 
         codes.add(code)
@@ -650,8 +867,9 @@ def verify():
         "LGA code check: PASS"
     )
 
+
     # --------------------------------------------------------
-    # STATE COUNT
+    # STATE RELATIONSHIP CHECK
     # --------------------------------------------------------
 
     state_counts = {}
@@ -667,13 +885,19 @@ def verify():
     if len(state_counts) != 37:
 
         raise RuntimeError(
-            f"FAILED: expected 37 state relationships, "
+            f"FAILED: expected LGAs belonging "
+            f"to 37 states/FCT, "
             f"found {len(state_counts)}."
         )
 
     print(
         "37 state relationships: PASS"
     )
+
+
+    # --------------------------------------------------------
+    # SUCCESS
+    # --------------------------------------------------------
 
     print()
     print("=" * 60)
@@ -693,36 +917,86 @@ def main():
     print("NIGERIA ADMINISTRATIVE DATA IMPORT")
     print("=" * 60)
 
-    # 1. Load JSON
+    # --------------------------------------------------------
+    # 1. TEST SUPABASE
+    # --------------------------------------------------------
+
+    test_connection()
+
+
+    # --------------------------------------------------------
+    # 2. LOAD JSON
+    # --------------------------------------------------------
+
     data = load_json()
 
-    # 2. Load database states
+
+    # --------------------------------------------------------
+    # 3. LOAD STATES
+    # --------------------------------------------------------
+
     states = load_states()
 
-    # 3. Extract LGAs
+
+    # --------------------------------------------------------
+    # 4. EXTRACT LGAS
+    # --------------------------------------------------------
+
     records = extract_lgas(data)
 
-    # 4. Validate dataset
+
+    # --------------------------------------------------------
+    # 5. VALIDATE JSON
+    # --------------------------------------------------------
+
     validate_lgas(
         records,
         states,
     )
 
-    # 5. Insert missing LGAs
-    insert_lgas(
+
+    # --------------------------------------------------------
+    # 6. LOAD EXISTING LGAS
+    # --------------------------------------------------------
+
+    existing = load_existing_lgas()
+
+
+    # --------------------------------------------------------
+    # 7. PREPARE INSERTS
+    # --------------------------------------------------------
+
+    missing = prepare_inserts(
         records,
         states,
+        existing,
     )
 
-    # 6. Verify final database
+
+    # --------------------------------------------------------
+    # 8. INSERT
+    # --------------------------------------------------------
+
+    insert_lgas(
+        missing,
+    )
+
+
+    # --------------------------------------------------------
+    # 9. VERIFY
+    # --------------------------------------------------------
+
     verify()
 
+
     print()
-    print("EXAMINA AI LGA SEEDING COMPLETE.")
+    print(
+        "EXAMINA AI LGA SEEDING COMPLETE."
+    )
 
 
 # ============================================================
-# RUN
+# EXECUTION
 # ============================================================
 
 if __name__ == "__main__":
