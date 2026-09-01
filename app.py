@@ -5,7 +5,12 @@
 
 import streamlit as st
 
-from database.database import test_database_connection
+from database.database import (
+    test_database_connection,
+    get_states,
+    get_lgas,
+    create_school,
+)
 
 from auth.authentication import (
     initialize_auth,
@@ -42,7 +47,10 @@ initialize_auth()
 def check_configuration():
 
     try:
-        success, result = test_database_connection()
+
+        success, result = (
+            test_database_connection()
+        )
 
         return success, result
 
@@ -72,10 +80,6 @@ def show_home():
 
     st.divider()
 
-    # --------------------------------------------------------
-    # ACTION BUTTONS
-    # --------------------------------------------------------
-
     col1, col2 = st.columns(2)
 
     with col1:
@@ -103,26 +107,28 @@ def show_home():
 
     st.divider()
 
-    # --------------------------------------------------------
-    # FEATURES
-    # --------------------------------------------------------
-
-    st.header("Everything your school needs")
+    st.header(
+        "Everything your school needs"
+    )
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
 
-        st.subheader("🏫 School Management")
+        st.subheader(
+            "🏫 School Management"
+        )
 
         st.write(
-            "Manage your school, teachers, students, "
+            "Manage schools, teachers, students, "
             "classes and subjects."
         )
 
     with col2:
 
-        st.subheader("📊 Academic Results")
+        st.subheader(
+            "📊 Academic Results"
+        )
 
         st.write(
             "Manage tests, examinations, grades, "
@@ -131,38 +137,337 @@ def show_home():
 
     with col3:
 
-        st.subheader("🤖 AI Examination")
+        st.subheader(
+            "🤖 AI Examination"
+        )
 
         st.write(
-            "Support handwritten examination scanning "
-            "and intelligent marking."
+            "Support handwritten examination "
+            "scanning and intelligent marking."
         )
 
     st.divider()
 
-    # --------------------------------------------------------
-    # TRUST
-    # --------------------------------------------------------
-
     col1, col2, col3 = st.columns(3)
 
     with col1:
-
-        st.success("✓ Secure authentication")
+        st.success(
+            "✓ Secure authentication"
+        )
 
     with col2:
-
-        st.success("✓ School-level data isolation")
+        st.success(
+            "✓ School-level data isolation"
+        )
 
     with col3:
-
-        st.success("✓ Controlled result publishing")
+        st.success(
+            "✓ Controlled result publishing"
+        )
 
     st.divider()
 
     st.caption(
         "Examina AI · Intelligent School Management"
     )
+
+
+# ============================================================
+# SCHOOL REGISTRATION
+# ============================================================
+
+def show_register():
+
+    st.title(
+        "🏫 Register Your School"
+    )
+
+    st.write(
+        "Create your school's Examina AI workspace."
+    )
+
+    st.divider()
+
+    # --------------------------------------------------------
+    # LOAD STATES
+    # --------------------------------------------------------
+
+    try:
+
+        states = get_states()
+
+    except Exception as error:
+
+        st.error(
+            "Unable to load Nigerian states."
+        )
+
+        st.stop()
+
+    if not states:
+
+        st.warning(
+            "No states are currently available."
+        )
+
+        st.stop()
+
+    # --------------------------------------------------------
+    # SCHOOL INFORMATION
+    # --------------------------------------------------------
+
+    st.subheader(
+        "School Information"
+    )
+
+    school_name = st.text_input(
+        "School name *",
+        placeholder="Example: Bright Future College",
+    )
+
+    short_name = st.text_input(
+        "Short name",
+        placeholder="Example: BFC",
+    )
+
+    school_type = st.selectbox(
+        "School type *",
+        [
+            "Primary School",
+            "Secondary School",
+            "Primary & Secondary School",
+        ],
+    )
+
+    address = st.text_area(
+        "School address *",
+        placeholder="Enter the full school address",
+    )
+
+    phone = st.text_input(
+        "School phone number",
+        placeholder="08012345678",
+    )
+
+    email = st.text_input(
+        "School email",
+        placeholder="school@example.com",
+    )
+
+    st.divider()
+
+    # --------------------------------------------------------
+    # LOCATION
+    # --------------------------------------------------------
+
+    st.subheader(
+        "School Location"
+    )
+
+    state_names = [
+        state["name"]
+        for state in states
+    ]
+
+    selected_state_name = st.selectbox(
+        "State *",
+        state_names,
+    )
+
+    selected_state = next(
+        (
+            state
+            for state in states
+            if state["name"]
+            == selected_state_name
+        ),
+        None,
+    )
+
+    if selected_state is None:
+
+        st.error(
+            "Unable to identify the selected state."
+        )
+
+        st.stop()
+
+    state_id = selected_state["id"]
+
+    # --------------------------------------------------------
+    # LOAD LGAS
+    # --------------------------------------------------------
+
+    try:
+
+        lgas = get_lgas(
+            state_id
+        )
+
+    except Exception as error:
+
+        st.error(
+            "Unable to load Local Government Areas."
+        )
+
+        with st.expander(
+            "Technical details"
+        ):
+
+            st.code(
+                str(error)
+            )
+
+        st.stop()
+
+    if not lgas:
+
+        st.warning(
+            "No Local Government Areas were found "
+            "for this state."
+        )
+
+        st.stop()
+
+    lga_names = [
+        lga["name"]
+        for lga in lgas
+    ]
+
+    selected_lga_name = st.selectbox(
+        "Local Government Area *",
+        lga_names,
+    )
+
+    selected_lga = next(
+        (
+            lga
+            for lga in lgas
+            if lga["name"]
+            == selected_lga_name
+        ),
+        None,
+    )
+
+    if selected_lga is None:
+
+        st.error(
+            "Unable to identify the selected LGA."
+        )
+
+        st.stop()
+
+    lga_id = selected_lga["id"]
+
+    st.divider()
+
+    # --------------------------------------------------------
+    # SUBMIT
+    # --------------------------------------------------------
+
+    if st.button(
+        "Create School",
+        use_container_width=True,
+        type="primary",
+    ):
+
+        # ----------------------------------------------------
+        # VALIDATION
+        # ----------------------------------------------------
+
+        if not school_name.strip():
+
+            st.error(
+                "School name is required."
+            )
+
+            return
+
+        if not address.strip():
+
+            st.error(
+                "School address is required."
+            )
+
+            return
+
+        # ----------------------------------------------------
+        # CREATE SCHOOL
+        # ----------------------------------------------------
+
+        try:
+
+            result = create_school(
+                name=school_name.strip(),
+                short_name=short_name.strip(),
+                school_type=school_type,
+                state_id=state_id,
+                lga_id=lga_id,
+                address=address.strip(),
+                phone=phone.strip(),
+                email=email.strip(),
+            )
+
+        except Exception as error:
+
+            st.error(
+                "School registration failed."
+            )
+
+            with st.expander(
+                "Technical details"
+            ):
+
+                st.code(
+                    str(error)
+                )
+
+            return
+
+        # ----------------------------------------------------
+        # SUCCESS
+        # ----------------------------------------------------
+
+        if result:
+
+            school = result[0]
+
+            st.success(
+                "School registered successfully."
+            )
+
+            st.session_state[
+                "school_id"
+            ] = school["id"]
+
+            st.session_state[
+                "page"
+            ] = "dashboard"
+
+            st.rerun()
+
+        else:
+
+            st.error(
+                "School registration returned no record."
+            )
+
+    st.write("")
+
+    # --------------------------------------------------------
+    # BACK
+    # --------------------------------------------------------
+
+    if st.button(
+        "← Back to home",
+        use_container_width=True,
+    ):
+
+        st.session_state[
+            "page"
+        ] = "home"
+
+        st.rerun()
 
 
 # ============================================================
@@ -187,7 +492,9 @@ def show_dashboard():
 
         email = "User"
 
-    st.title("Dashboard 🎓")
+    st.title(
+        "Dashboard 🎓"
+    )
 
     st.write(
         f"Welcome, {email}"
@@ -195,11 +502,9 @@ def show_dashboard():
 
     st.divider()
 
-    # --------------------------------------------------------
-    # STATISTICS
-    # --------------------------------------------------------
-
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4 = (
+        st.columns(4)
+    )
 
     with col1:
 
@@ -235,10 +540,6 @@ def show_dashboard():
         "Your Examina AI workspace is ready."
     )
 
-    # --------------------------------------------------------
-    # LOGOUT
-    # --------------------------------------------------------
-
     if st.button(
         "Logout",
         use_container_width=True,
@@ -246,51 +547,26 @@ def show_dashboard():
 
         logout_user()
 
-        st.session_state["page"] = "home"
+        st.session_state[
+            "page"
+        ] = "home"
 
         st.rerun()
 
 
 # ============================================================
-# SCHOOL REGISTRATION
-# ============================================================
-
-def show_register():
-
-    st.title("Register your school 🏫")
-
-    st.write(
-        "Create your school's secure Examina AI workspace."
-    )
-
-    st.divider()
-
-    st.info(
-        "The school registration form will be connected "
-        "to your Supabase school tables."
-    )
-
-    if st.button(
-        "← Back to home",
-        use_container_width=True,
-    ):
-
-        st.session_state["page"] = "home"
-
-        st.rerun()
-
-
-# ============================================================
-# ROUTER
+# APPLICATION ROUTER
 # ============================================================
 
 def main():
 
     # --------------------------------------------------------
-    # DATABASE CONNECTION
+    # DATABASE CHECK
     # --------------------------------------------------------
 
-    success, result = check_configuration()
+    success, result = (
+        check_configuration()
+    )
 
     if not success:
 
@@ -298,18 +574,10 @@ def main():
             "Unable to connect to the Examina database."
         )
 
-        with st.expander(
-            "Technical details"
-        ):
-
-            st.code(
-                str(result)
-            )
-
         st.stop()
 
     # --------------------------------------------------------
-    # CURRENT PAGE
+    # PAGE
     # --------------------------------------------------------
 
     page = st.session_state.get(
@@ -328,6 +596,16 @@ def main():
         return
 
     # --------------------------------------------------------
+    # REGISTER
+    # --------------------------------------------------------
+
+    if page == "register":
+
+        show_register()
+
+        return
+
+    # --------------------------------------------------------
     # DASHBOARD
     # --------------------------------------------------------
 
@@ -335,23 +613,15 @@ def main():
 
         if not is_authenticated():
 
-            st.session_state["page"] = "login"
+            st.session_state[
+                "page"
+            ] = "login"
 
             st.rerun()
 
             return
 
         show_dashboard()
-
-        return
-
-    # --------------------------------------------------------
-    # REGISTRATION
-    # --------------------------------------------------------
-
-    if page == "register":
-
-        show_register()
 
         return
 
