@@ -1,69 +1,35 @@
-# ============================================================
-# EXAMINA AI
-# SUPABASE CLIENT
-# ============================================================
-
-import os
-
 import streamlit as st
 from supabase import create_client
 
 
-# ============================================================
-# GET CREDENTIALS
-# ============================================================
-
-def get_supabase_credentials():
-
-    # --------------------------------------------------------
-    # STREAMLIT SECRETS
-    # --------------------------------------------------------
+@st.cache_resource
+def get_supabase_client():
 
     try:
+        supabase_url = st.secrets["SUPABASE_URL"]
+        supabase_key = st.secrets["SUPABASE_KEY"]
 
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_KEY"]
+    except KeyError as error:
 
-        if url and key:
+        raise RuntimeError(
+            f"{error.args[0]} is missing. "
+            "Check that Streamlit Secrets contains "
+            "SUPABASE_URL and SUPABASE_KEY."
+        )
 
-            return url, key
-
-    except Exception:
-        pass
-
-
-    # --------------------------------------------------------
-    # ENVIRONMENT VARIABLES
-    # --------------------------------------------------------
-
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_KEY")
-
-    if not url:
+    if not supabase_url:
 
         raise RuntimeError(
             "SUPABASE_URL is missing."
         )
 
-    if not key:
+    if not supabase_key:
 
         raise RuntimeError(
             "SUPABASE_KEY is missing."
         )
 
-    return url, key
-
-
-# ============================================================
-# CREATE CLIENT
-# ============================================================
-
-@st.cache_resource
-def get_supabase_client():
-
-    url, key = get_supabase_credentials()
-
     return create_client(
-        url,
-        key,
+        supabase_url,
+        supabase_key,
     )
