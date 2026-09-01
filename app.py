@@ -48,9 +48,7 @@ def check_configuration():
 
     try:
 
-        success, result = (
-            test_database_connection()
-        )
+        success, result = test_database_connection()
 
         return success, result
 
@@ -60,7 +58,7 @@ def check_configuration():
 
 
 # ============================================================
-# HOME
+# HOME PAGE
 # ============================================================
 
 def show_home():
@@ -73,9 +71,9 @@ def show_home():
     )
 
     st.write(
-        "Examina AI brings school administration, "
-        "student records, teachers, classes, subjects "
-        "and examination management into one platform."
+        "Examina AI brings school administration, student "
+        "records, teachers, classes, subjects and examination "
+        "management into one platform."
     )
 
     st.divider()
@@ -107,17 +105,13 @@ def show_home():
 
     st.divider()
 
-    st.header(
-        "Everything your school needs"
-    )
+    st.header("Everything your school needs")
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
 
-        st.subheader(
-            "🏫 School Management"
-        )
+        st.subheader("🏫 School Management")
 
         st.write(
             "Manage schools, teachers, students, "
@@ -126,9 +120,7 @@ def show_home():
 
     with col2:
 
-        st.subheader(
-            "📊 Academic Results"
-        )
+        st.subheader("📊 Academic Results")
 
         st.write(
             "Manage tests, examinations, grades, "
@@ -137,13 +129,11 @@ def show_home():
 
     with col3:
 
-        st.subheader(
-            "🤖 AI Examination"
-        )
+        st.subheader("🤖 AI Examination")
 
         st.write(
-            "Support handwritten examination "
-            "scanning and intelligent marking."
+            "Support handwritten examination scanning "
+            "and intelligent marking."
         )
 
     st.divider()
@@ -151,19 +141,13 @@ def show_home():
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.success(
-            "✓ Secure authentication"
-        )
+        st.success("✓ Secure authentication")
 
     with col2:
-        st.success(
-            "✓ School-level data isolation"
-        )
+        st.success("✓ School-level data isolation")
 
     with col3:
-        st.success(
-            "✓ Controlled result publishing"
-        )
+        st.success("✓ Controlled result publishing")
 
     st.divider()
 
@@ -178,15 +162,57 @@ def show_home():
 
 def show_register():
 
-    st.title(
-        "🏫 Register Your School"
-    )
+    st.title("🏫 Register Your School")
 
     st.write(
         "Create your school's Examina AI workspace."
     )
 
     st.divider()
+
+    # ========================================================
+    # SCHOOL INFORMATION
+    # ========================================================
+
+    st.subheader("School Information")
+
+    school_name = st.text_input(
+        "School name *",
+        placeholder="Example: Bright Future College",
+    )
+
+    registration_number = st.text_input(
+        "School registration number *",
+        placeholder="Example: SCH-2026-001",
+    )
+
+    address = st.text_area(
+        "School address",
+        placeholder="Enter the full school address",
+    )
+
+    phone = st.text_input(
+        "School phone number",
+        placeholder="08012345678",
+    )
+
+    email = st.text_input(
+        "School email",
+        placeholder="school@example.com",
+    )
+
+    motto = st.text_input(
+        "School motto",
+        placeholder="Example: Knowledge Is Power",
+    )
+
+    st.divider()
+
+    # ========================================================
+    # SCHOOL LOCATION
+    # ========================================================
+
+    st.subheader("School Location")
 
     # --------------------------------------------------------
     # LOAD STATES
@@ -202,72 +228,37 @@ def show_register():
             "Unable to load Nigerian states."
         )
 
-        st.stop()
+        with st.expander("Technical details"):
+
+            st.code(str(error))
+
+        return
 
     if not states:
 
         st.warning(
-            "No states are currently available."
+            "No states are currently available in the database."
         )
 
-        st.stop()
+        return
 
     # --------------------------------------------------------
-    # SCHOOL INFORMATION
+    # STATE
     # --------------------------------------------------------
-
-    st.subheader(
-        "School Information"
-    )
-
-    school_name = st.text_input(
-        "School name *",
-        placeholder="Example: Bright Future College",
-    )
-
-    short_name = st.text_input(
-        "Short name",
-        placeholder="Example: BFC",
-    )
-
-    school_type = st.selectbox(
-        "School type *",
-        [
-            "Primary School",
-            "Secondary School",
-            "Primary & Secondary School",
-        ],
-    )
-
-    address = st.text_area(
-        "School address *",
-        placeholder="Enter the full school address",
-    )
-
-    phone = st.text_input(
-        "School phone number",
-        placeholder="08012345678",
-    )
-
-    email = st.text_input(
-        "School email",
-        placeholder="school@example.com",
-    )
-
-    st.divider()
-
-    # --------------------------------------------------------
-    # LOCATION
-    # --------------------------------------------------------
-
-    st.subheader(
-        "School Location"
-    )
 
     state_names = [
         state["name"]
         for state in states
+        if state.get("name")
     ]
+
+    if not state_names:
+
+        st.error(
+            "The states table contains no usable state names."
+        )
+
+        return
 
     selected_state_name = st.selectbox(
         "State *",
@@ -278,7 +269,7 @@ def show_register():
         (
             state
             for state in states
-            if state["name"]
+            if state.get("name")
             == selected_state_name
         ),
         None,
@@ -290,19 +281,17 @@ def show_register():
             "Unable to identify the selected state."
         )
 
-        st.stop()
+        return
 
     state_id = selected_state["id"]
 
     # --------------------------------------------------------
-    # LOAD LGAS
+    # LOAD LGAs
     # --------------------------------------------------------
 
     try:
 
-        lgas = get_lgas(
-            state_id
-        )
+        lgas = get_lgas(state_id)
 
     except Exception as error:
 
@@ -310,15 +299,11 @@ def show_register():
             "Unable to load Local Government Areas."
         )
 
-        with st.expander(
-            "Technical details"
-        ):
+        with st.expander("Technical details"):
 
-            st.code(
-                str(error)
-            )
+            st.code(str(error))
 
-        st.stop()
+        return
 
     if not lgas:
 
@@ -327,12 +312,25 @@ def show_register():
             "for this state."
         )
 
-        st.stop()
+        return
+
+    # --------------------------------------------------------
+    # LGA
+    # --------------------------------------------------------
 
     lga_names = [
         lga["name"]
         for lga in lgas
+        if lga.get("name")
     ]
+
+    if not lga_names:
+
+        st.error(
+            "The selected state has no usable LGA names."
+        )
+
+        return
 
     selected_lga_name = st.selectbox(
         "Local Government Area *",
@@ -343,7 +341,7 @@ def show_register():
         (
             lga
             for lga in lgas
-            if lga["name"]
+            if lga.get("name")
             == selected_lga_name
         ),
         None,
@@ -355,18 +353,18 @@ def show_register():
             "Unable to identify the selected LGA."
         )
 
-        st.stop()
+        return
 
     lga_id = selected_lga["id"]
 
     st.divider()
 
-    # --------------------------------------------------------
-    # SUBMIT
-    # --------------------------------------------------------
+    # ========================================================
+    # REGISTRATION
+    # ========================================================
 
     if st.button(
-        "Create School",
+        "🏫 Create School",
         use_container_width=True,
         type="primary",
     ):
@@ -383,10 +381,10 @@ def show_register():
 
             return
 
-        if not address.strip():
+        if not registration_number.strip():
 
             st.error(
-                "School address is required."
+                "School registration number is required."
             )
 
             return
@@ -399,13 +397,26 @@ def show_register():
 
             result = create_school(
                 name=school_name.strip(),
-                short_name=short_name.strip(),
-                school_type=school_type,
-                state_id=state_id,
+
+                registration_number=(
+                    registration_number.strip()
+                ),
+
+                state=selected_state_name,
+
+                local_government=(
+                    selected_lga_name
+                ),
+
                 lga_id=lga_id,
+
                 address=address.strip(),
+
                 phone=phone.strip(),
+
                 email=email.strip(),
+
+                motto=motto.strip(),
             )
 
         except Exception as error:
@@ -418,9 +429,7 @@ def show_register():
                 "Technical details"
             ):
 
-                st.code(
-                    str(error)
-                )
+                st.code(str(error))
 
             return
 
@@ -432,17 +441,19 @@ def show_register():
 
             school = result[0]
 
+            st.session_state["school_id"] = (
+                school["id"]
+            )
+
+            st.session_state["school"] = school
+
+            st.session_state["page"] = (
+                "dashboard"
+            )
+
             st.success(
                 "School registered successfully."
             )
-
-            st.session_state[
-                "school_id"
-            ] = school["id"]
-
-            st.session_state[
-                "page"
-            ] = "dashboard"
 
             st.rerun()
 
@@ -454,18 +465,16 @@ def show_register():
 
     st.write("")
 
-    # --------------------------------------------------------
+    # ========================================================
     # BACK
-    # --------------------------------------------------------
+    # ========================================================
 
     if st.button(
         "← Back to home",
         use_container_width=True,
     ):
 
-        st.session_state[
-            "page"
-        ] = "home"
+        st.session_state["page"] = "home"
 
         st.rerun()
 
@@ -492,9 +501,7 @@ def show_dashboard():
 
         email = "User"
 
-    st.title(
-        "Dashboard 🎓"
-    )
+    st.title("Dashboard 🎓")
 
     st.write(
         f"Welcome, {email}"
@@ -502,9 +509,60 @@ def show_dashboard():
 
     st.divider()
 
-    col1, col2, col3, col4 = (
-        st.columns(4)
+    # ========================================================
+    # SCHOOL INFORMATION
+    # ========================================================
+
+    school = st.session_state.get(
+        "school"
     )
+
+    if school:
+
+        st.subheader(
+            school.get(
+                "name",
+                "Your School",
+            )
+        )
+
+        registration_number = school.get(
+            "registration_number"
+        )
+
+        if registration_number:
+
+            st.caption(
+                f"Registration number: "
+                f"{registration_number}"
+            )
+
+        location = []
+
+        if school.get("local_government"):
+
+            location.append(
+                school["local_government"]
+            )
+
+        if school.get("state"):
+
+            location.append(
+                school["state"]
+            )
+
+        if location:
+
+            st.caption(
+                "Location: "
+                + ", ".join(location)
+            )
+
+    # ========================================================
+    # DASHBOARD METRICS
+    # ========================================================
+
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
 
@@ -547,9 +605,17 @@ def show_dashboard():
 
         logout_user()
 
-        st.session_state[
-            "page"
-        ] = "home"
+        st.session_state["page"] = "home"
+
+        st.session_state.pop(
+            "school_id",
+            None,
+        )
+
+        st.session_state.pop(
+            "school",
+            None,
+        )
 
         st.rerun()
 
@@ -560,13 +626,11 @@ def show_dashboard():
 
 def main():
 
-    # --------------------------------------------------------
-    # DATABASE CHECK
-    # --------------------------------------------------------
+    # ========================================================
+    # DATABASE CONNECTION CHECK
+    # ========================================================
 
-    success, result = (
-        check_configuration()
-    )
+    success, result = check_configuration()
 
     if not success:
 
@@ -576,18 +640,18 @@ def main():
 
         st.stop()
 
-    # --------------------------------------------------------
-    # PAGE
-    # --------------------------------------------------------
+    # ========================================================
+    # CURRENT PAGE
+    # ========================================================
 
     page = st.session_state.get(
         "page",
         "home",
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # LOGIN
-    # --------------------------------------------------------
+    # ========================================================
 
     if page == "login":
 
@@ -595,9 +659,9 @@ def main():
 
         return
 
-    # --------------------------------------------------------
+    # ========================================================
     # REGISTER
-    # --------------------------------------------------------
+    # ========================================================
 
     if page == "register":
 
@@ -605,17 +669,15 @@ def main():
 
         return
 
-    # --------------------------------------------------------
+    # ========================================================
     # DASHBOARD
-    # --------------------------------------------------------
+    # ========================================================
 
     if page == "dashboard":
 
         if not is_authenticated():
 
-            st.session_state[
-                "page"
-            ] = "login"
+            st.session_state["page"] = "login"
 
             st.rerun()
 
@@ -625,15 +687,15 @@ def main():
 
         return
 
-    # --------------------------------------------------------
+    # ========================================================
     # HOME
-    # --------------------------------------------------------
+    # ========================================================
 
     show_home()
 
 
 # ============================================================
-# START
+# APPLICATION ENTRY POINT
 # ============================================================
 
 if __name__ == "__main__":
