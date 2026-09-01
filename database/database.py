@@ -7,7 +7,7 @@ from database.supabase_client import get_supabase_client
 
 
 # ============================================================
-# GET DATABASE CLIENT
+# DATABASE CLIENT
 # ============================================================
 
 def get_db():
@@ -15,13 +15,12 @@ def get_db():
 
 
 # ============================================================
-# TEST DATABASE CONNECTION
+# TEST CONNECTION
 # ============================================================
 
 def test_database_connection():
 
     try:
-
         supabase = get_db()
 
         response = (
@@ -35,7 +34,6 @@ def test_database_connection():
         return True, response.data
 
     except Exception as error:
-
         return False, str(error)
 
 
@@ -59,7 +57,7 @@ def get_states():
 
 
 # ============================================================
-# GET LGAS BY STATE
+# GET LGAS
 # ============================================================
 
 def get_lgas(state_id):
@@ -143,22 +141,3 @@ def get_school(school_id):
         return None
 
     return data[0]
-
-
-# ============================================================
-# GET SCHOOLS
-# ============================================================
-
-def get_schools():
-
-    supabase = get_db()
-
-    response = (
-        supabase
-        .table("schools")
-        .select("*")
-        .order("name")
-        .execute()
-    )
-
-    return response.data or []
