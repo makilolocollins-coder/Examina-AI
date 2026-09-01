@@ -1,38 +1,26 @@
-import os
 import streamlit as st
-from dotenv import load_dotenv
-
-load_dotenv()
 
 
-def get_database_url():
-    value = None
+def get_supabase_config():
+    """
+    Read Supabase credentials from Streamlit Secrets.
 
-    # Streamlit Cloud
+    Never hardcode credentials in source code.
+    """
+
     try:
-        value = st.secrets.get("DATABASE_URL")
-    except Exception:
-        pass
+        supabase_url = st.secrets["SUPABASE_URL"]
+        supabase_key = st.secrets["SUPABASE_KEY"]
+    except KeyError as exc:
+        raise RuntimeError(
+            "Missing Supabase configuration. "
+            "Add SUPABASE_URL and SUPABASE_KEY to Streamlit Secrets."
+        ) from exc
 
-    # Local fallback
-    if not value:
-        value = os.getenv("DATABASE_URL")
+    if not supabase_url or not supabase_key:
+        raise RuntimeError(
+            "Supabase configuration is empty. "
+            "Check Streamlit Secrets."
+        )
 
-    if not value:
-        raise RuntimeError("DATABASE_URL is missing.")
-
-    value = str(value).strip()
-
-    # Remove accidental surrounding quotes
-    if len(value) >= 2:
-        if value[0] == value[-1] and value[0] in ('"', "'"):
-            value = value[1:-1].strip()
-
-    # Convert old PostgreSQL scheme
-    if value.startswith("postgres://"):
-        value = "postgresql://" + value[len("postgres://"):]
-
-    return value
-
-
-DATABASE_URL = get_database_url()
+    return supabase_url, supabase_key
