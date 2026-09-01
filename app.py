@@ -59,64 +59,36 @@ def check_configuration():
 
 st.markdown(
     """
-    <style>
-
-    .stApp {
-        background-color: #f8fafc;
-    }
-
-    .block-container {
-        max-width: 1150px;
-        padding-top: 2rem;
-        padding-bottom: 4rem;
-    }
-
-    #MainMenu {
-        visibility: hidden;
-    }
-
-    footer {
-        visibility: hidden;
-    }
-
-    header {
-        visibility: hidden;
-    }
-
-    .hero {
-        padding: 4rem;
-        border-radius: 28px;
-        background:
-            linear-gradient(
-                135deg,
-                #0f172a,
-                #172554,
-                #312e81
-            );
+    <div style="
+        padding: 40px;
+        border-radius: 24px;
+        background: linear-gradient(
+            135deg,
+            #0f172a,
+            #312e81
+        );
         color: white;
-    }
+        text-align: center;
+        margin-bottom: 30px;
+    ">
 
-    .hero h1 {
-        font-size: 3.5rem;
-        margin-bottom: 1rem;
-    }
+        <h1 style="
+            font-size: 3rem;
+            margin-bottom: 10px;
+        ">
+            Examina AI 🎓
+        </h1>
 
-    .hero p {
-        font-size: 1.1rem;
-        color: #cbd5e1;
-        max-width: 700px;
-        line-height: 1.7;
-    }
+        <p style="
+            font-size: 1.1rem;
+            color: #cbd5e1;
+        ">
+            Intelligent school management,
+            academic records, examination results
+            and secure digital learning in one platform.
+        </p>
 
-    .feature {
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 20px;
-        padding: 1.5rem;
-        min-height: 180px;
-    }
-
-    </style>
+    </div>
     """,
     unsafe_allow_html=True,
 )
