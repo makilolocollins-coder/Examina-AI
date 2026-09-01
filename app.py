@@ -5,6 +5,8 @@
 
 import streamlit as st
 
+from database.supabase_client import get_supabase_client
+
 from database.database import (
     test_database_connection,
 )
