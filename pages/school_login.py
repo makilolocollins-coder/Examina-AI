@@ -41,10 +41,6 @@ def show_account_setup():
             "Registered School Email"
         )
 
-        full_name = st.text_input(
-            "Account Holder Full Name"
-        )
-
         password = st.text_input(
             "Password",
             type="password"
@@ -75,8 +71,6 @@ def show_account_setup():
 
     email = email.strip().lower()
 
-    full_name = full_name.strip()
-
 
     # --------------------------------------------------------
     # VALIDATION
@@ -95,15 +89,6 @@ def show_account_setup():
 
         st.error(
             "Enter the school's registered email."
-        )
-
-        return
-
-
-    if not full_name:
-
-        st.error(
-            "Enter the account holder's full name."
         )
 
         return
@@ -182,7 +167,6 @@ def show_account_setup():
             email=email,
             password=password,
             school_id=school_id,
-            full_name=full_name,
         )
 
         user = getattr(
