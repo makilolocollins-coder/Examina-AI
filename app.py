@@ -9,7 +9,7 @@ from pages.register import show_register
 from pages.admin.login import show_admin_login
 from pages.admin.dashboard import show_admin_dashboard
 from pages.admin.verification import show_verification
-
+from pages.school_login import show_school_portal
 
 # ============================================================
 # PAGE CONFIGURATION
@@ -32,6 +32,13 @@ if "admin_authenticated" not in st.session_state:
 
 if "admin_user" not in st.session_state:
     st.session_state.admin_user = None
+
+if "school_authenticated" not in st.session_state:
+    st.session_state.school_authenticated = False
+
+if "school_user" not in st.session_state:
+    st.session_state.school_user = None
+
 
 
 # ============================================================
@@ -217,9 +224,9 @@ def main():
     # SCHOOL
     # --------------------------------------------------------
 
-    elif portal == "school":
+    elif page == "school":
 
-        school_portal()
+    show_school_portal()
 
     # --------------------------------------------------------
     # REGISTRATION
