@@ -10,7 +10,14 @@ from database.supabase_client import get_supabase_client
 
 
 # ============================================================
-# FILE LOCATION
+# DATABASE
+# ============================================================
+
+supabase = get_supabase_client()
+
+
+# ============================================================
+# JSON FILE
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -19,14 +26,7 @@ JSON_FILE = BASE_DIR / "all-lga.json"
 
 
 # ============================================================
-# GET SUPABASE CLIENT
-# ============================================================
-
-supabase = get_supabase_client()
-
-
-# ============================================================
-# LOAD JSON
+# LOAD all-lga.json
 # ============================================================
 
 def load_lga_data():
@@ -34,7 +34,7 @@ def load_lga_data():
     if not JSON_FILE.exists():
 
         raise FileNotFoundError(
-            f"Could not find: {JSON_FILE}"
+            f"File not found: {JSON_FILE}"
         )
 
     with open(
@@ -63,7 +63,7 @@ def get_states():
 
 
 # ============================================================
-# SEED LGAs
+# SEED LOCAL GOVERNMENTS
 # ============================================================
 
 def seed_lgas():
@@ -79,33 +79,24 @@ def seed_lgas():
         )
 
     # --------------------------------------------------------
-    # Create state lookup
+    # STATE LOOKUP
     # --------------------------------------------------------
 
-    state_lookup = {}
-
-    for state in states:
-
-        state_lookup[
-            state["name"].strip().lower()
-        ] = state["id"]
-
-    # --------------------------------------------------------
-    # Prepare LGA records
-    # --------------------------------------------------------
+    state_lookup = {
+        state["name"].strip().lower(): state["id"]
+        for state in states
+    }
 
     records = []
 
+    # --------------------------------------------------------
+    # READ all-lga.json
+    # --------------------------------------------------------
+
     for state_name, lgas in data.items():
 
-        state_key = (
-            state_name
-            .strip()
-            .lower()
-        )
-
         state_id = state_lookup.get(
-            state_key
+            state_name.strip().lower()
         )
 
         if not state_id:
@@ -121,14 +112,12 @@ def seed_lgas():
             if isinstance(lga, str):
 
                 lga_name = lga.strip()
-
                 lga_code = None
 
             else:
 
                 lga_name = (
-                    lga.get("name", "")
-                    .strip()
+                    lga.get("name", "").strip()
                 )
 
                 lga_code = lga.get("code")
@@ -145,7 +134,7 @@ def seed_lgas():
             )
 
     # --------------------------------------------------------
-    # Remove duplicates
+    # REMOVE DUPLICATES
     # --------------------------------------------------------
 
     unique_records = {}
@@ -168,12 +157,10 @@ def seed_lgas():
     )
 
     # --------------------------------------------------------
-    # Insert in batches
+    # INSERT LGAs
     # --------------------------------------------------------
 
     batch_size = 100
-
-    inserted = 0
 
     for start in range(
         0,
@@ -187,19 +174,14 @@ def seed_lgas():
 
         supabase \
             .table("local_governments") \
-            .upsert(
-                batch,
-                on_conflict="state_id,name",
-            ) \
+            .insert(batch) \
             .execute()
 
-        inserted += len(batch)
-
         print(
-            f"Inserted: {inserted}/{len(records)}"
+            f"Inserted {min(start + batch_size, len(records))}"
+            f"/{len(records)}"
         )
 
-    print("")
     print(
         "LGA seeding completed successfully."
     )
