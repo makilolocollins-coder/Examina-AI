@@ -9,7 +9,7 @@ from database.supabase_client import get_supabase_client
 
 
 # ============================================================
-# SECURITY CHECK
+# ADMIN ACCESS
 # ============================================================
 
 def check_admin_access():
@@ -21,7 +21,7 @@ def check_admin_access():
         st.stop()
 
     if not admin.get("is_active", False):
-        st.error("Your admin account is inactive.")
+        st.error("Admin account is inactive.")
         st.stop()
 
     return admin
@@ -39,14 +39,29 @@ def get_pending_schools():
         supabase
         .table("schools")
         .select(
-            "id,name,registration_number,"
-            "local_government,state,address,phone,"
-            "email,motto,logo_url,"
+            "id,"
+            "name,"
+            "registration_number,"
+            "local_government,"
+            "state,"
+            "address,"
+            "phone,"
+            "email,"
+            "motto,"
+            "logo_url,"
             "ministry_certificate_url,"
-            "verification_status,is_active,created_at"
+            "verification_status,"
+            "is_active,"
+            "created_at"
         )
-        .eq("verification_status", "pending")
-        .order("created_at", desc=False)
+        .eq(
+            "verification_status",
+            "pending"
+        )
+        .order(
+            "created_at",
+            desc=False
+        )
         .execute()
     )
 
@@ -64,20 +79,25 @@ def update_school_status(
 
     supabase = get_supabase_client()
 
-    if status == "verified":
+    if status == "approved":
 
         response = (
             supabase
             .table("schools")
             .update({
-                "verification_status": "verified",
+                "verification_status": "approved",
                 "is_active": True,
             })
-            .eq("id", school_id)
+            .eq(
+                "id",
+                school_id
+            )
             .execute()
         )
 
-    elif status == "rejected":
+        return response.data
+
+    if status == "rejected":
 
         response = (
             supabase
@@ -86,72 +106,72 @@ def update_school_status(
                 "verification_status": "rejected",
                 "is_active": False,
             })
-            .eq("id", school_id)
+            .eq(
+                "id",
+                school_id
+            )
             .execute()
         )
 
-    else:
+        return response.data
 
-        raise ValueError(
-            "Invalid verification status."
-        )
-
-    return response.data
+    raise ValueError(
+        "Invalid school verification status."
+    )
 
 
 # ============================================================
-# ADMIN VERIFICATION PAGE
+# VERIFICATION PAGE
 # ============================================================
 
 def show_verification():
 
-    admin = check_admin_access()
+    check_admin_access()
 
     st.title("School Verification")
 
     st.caption(
-        "Review and verify schools registered on Examina AI."
+        "Review schools waiting for approval."
     )
 
     st.divider()
 
-    pending_schools = get_pending_schools()
+    schools = get_pending_schools()
 
     # ========================================================
     # NO PENDING SCHOOLS
     # ========================================================
 
-    if not pending_schools:
+    if not schools:
 
         st.success(
-            "There are no schools waiting for verification."
+            "No schools are currently waiting for verification."
         )
 
         return
 
-    # ========================================================
-    # SUMMARY
-    # ========================================================
-
     st.metric(
         "Schools Awaiting Verification",
-        len(pending_schools)
+        len(schools)
     )
 
     st.divider()
 
     # ========================================================
-    # DISPLAY SCHOOLS
+    # SCHOOL LIST
     # ========================================================
 
-    for school in pending_schools:
+    for school in schools:
 
         school_id = school["id"]
 
         with st.container(border=True):
 
             st.subheader(
-                school.get("name", "Unnamed School")
+                school.get(
+                    "name",
+                    "Unnamed School"
+                )
             )
 
             col1, col2 = st.columns(2)
@@ -217,7 +237,7 @@ def show_verification():
                 )
 
                 st.write(
-                    "**Status:** `PENDING`"
+                    "**Status:** PENDING"
                 )
 
             # =================================================
@@ -226,7 +246,7 @@ def show_verification():
 
             st.divider()
 
-            st.write("### Registration Documents")
+            st.write("### Documents")
 
             certificate_url = school.get(
                 "ministry_certificate_url"
@@ -246,8 +266,8 @@ def show_verification():
 
             else:
 
-                st.warning(
-                    "No ministry certificate uploaded."
+                st.info(
+                    "No ministry certificate was uploaded."
                 )
 
             if logo_url:
@@ -258,8 +278,14 @@ def show_verification():
                     use_container_width=True
                 )
 
+            else:
+
+                st.info(
+                    "No school logo was uploaded."
+                )
+
             # =================================================
-            # ACTIONS
+            # ACTION BUTTONS
             # =================================================
 
             st.divider()
@@ -277,12 +303,10 @@ def show_verification():
 
                     try:
 
-                          update_school_status(
-                              school_id,
-                              "approved"
+                        update_school_status(
+                            school_id,
+                            "approved"
                         )
-
-                    
 
                         st.success(
                             "School approved successfully."
@@ -316,12 +340,6 @@ def show_verification():
                         )
 
                         st.rerun()
-
-                    except Exception as error:
-
-                        st.error(
-                            f"Could not reject school: {error}"
-                        )
 
 
 # ============================================================
