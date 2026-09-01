@@ -23,10 +23,11 @@ def valid_email(email):
     if not email:
         return True
 
-    pattern = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
-
     return bool(
-        re.match(pattern, email)
+        re.match(
+            r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+            email,
+        )
     )
 
 
@@ -54,7 +55,7 @@ def show_register():
     st.write("")
 
     # ========================================================
-    # PAGE HEADER
+    # HEADER
     # ========================================================
 
     st.caption("SCHOOL REGISTRATION")
@@ -85,8 +86,7 @@ def show_register():
     except Exception:
 
         st.error(
-            "We could not load the states. "
-            "Please try again."
+            "Unable to load states. Please try again."
         )
 
         return
@@ -94,22 +94,22 @@ def show_register():
     if not states:
 
         st.warning(
-            "No states are currently available."
+            "No states are available."
         )
 
         return
 
     # ========================================================
-    # STATE OPTIONS
+    # STATE LOOKUP
     # ========================================================
 
-    state_options = {
+    state_lookup = {
         state["name"]: state
         for state in states
     }
 
     # ========================================================
-    # REGISTRATION FORM
+    # FORM
     # ========================================================
 
     st.subheader("School information")
@@ -134,26 +134,29 @@ def show_register():
 
         registration_number = st.text_input(
             "Registration number *",
-            placeholder="Enter your school registration number",
+            placeholder="Enter your official school registration number",
         )
 
         # ----------------------------------------------------
-        # LOCATION
+        # STATE
         # ----------------------------------------------------
 
         state_name = st.selectbox(
             "State *",
-            options=list(state_options.keys()),
+            options=list(state_lookup.keys()),
             index=None,
             placeholder="Select state",
         )
 
-        lga_name = None
+        # ----------------------------------------------------
+        # LGA
+        # ----------------------------------------------------
+
         selected_lga = None
 
         if state_name:
 
-            selected_state = state_options[state_name]
+            selected_state = state_lookup[state_name]
 
             try:
 
@@ -164,35 +167,46 @@ def show_register():
             except Exception:
 
                 st.error(
-                    "We could not load the LGAs "
-                    "for this state."
+                    "Unable to load local governments."
                 )
 
                 return
 
-            if not lgas:
+            if lgas:
 
-                st.warning(
-                    "No local governments are available "
-                    "for the selected state."
-                )
-
-            else:
-
-                lga_options = {
+                lga_lookup = {
                     lga["name"]: lga
                     for lga in lgas
                 }
 
                 lga_name = st.selectbox(
                     "Local Government *",
-                    options=list(lga_options.keys()),
+                    options=list(lga_lookup.keys()),
                     index=None,
                     placeholder="Select local government",
                 )
 
                 if lga_name:
-                    selected_lga = lga_options[lga_name]
+
+                    selected_lga = lga_lookup[
+                        lga_name
+                    ]
+
+            else:
+
+                st.warning(
+                    "No local governments found "
+                    "for this state."
+                )
+
+        else:
+
+            st.selectbox(
+                "Local Government *",
+                options=[],
+                disabled=True,
+                placeholder="Select a state first",
+            )
 
         # ----------------------------------------------------
         # ADDRESS
@@ -244,7 +258,7 @@ def show_register():
         )
 
     # ========================================================
-    # FORM SUBMISSION
+    # STOP IF NOT SUBMITTED
     # ========================================================
 
     if not submitted:
@@ -294,22 +308,22 @@ def show_register():
         return
 
     # ========================================================
-    # CLEAN DATA
+    # CLEAN INPUT
     # ========================================================
 
-    clean_name = school_name.strip()
+    school_name = school_name.strip()
 
-    clean_registration_number = (
+    registration_number = (
         registration_number.strip()
     )
 
-    clean_address = address.strip()
+    address = address.strip()
 
-    clean_phone = phone.strip()
+    phone = phone.strip()
 
-    clean_email = email.strip()
+    email = email.strip()
 
-    clean_motto = motto.strip()
+    motto = motto.strip()
 
     # ========================================================
     # CHECK DUPLICATE REGISTRATION NUMBER
@@ -317,38 +331,39 @@ def show_register():
 
     try:
 
-        if school_exists(
-            clean_registration_number
-        ):
-
-            st.error(
-                "A school with this registration number "
-                "already exists."
-            )
-
-            return
+        exists = school_exists(
+            registration_number
+        )
 
     except Exception:
 
         st.error(
-            "We could not verify the registration number. "
-            "Please try again."
+            "Unable to verify the registration number."
+        )
+
+        return
+
+    if exists:
+
+        st.error(
+            "A school with this registration number "
+            "already exists."
         )
 
         return
 
     # ========================================================
-    # CREATE SCHOOL
+    # REGISTER SCHOOL
     # ========================================================
 
     try:
 
         result = create_school(
 
-            name=clean_name,
+            name=school_name,
 
             registration_number=(
-                clean_registration_number
+                registration_number
             ),
 
             local_government=(
@@ -357,13 +372,13 @@ def show_register():
 
             state=state_name,
 
-            address=clean_address,
+            address=address,
 
-            phone=clean_phone,
+            phone=phone,
 
-            email=clean_email,
+            email=email,
 
-            motto=clean_motto,
+            motto=motto,
 
             verification_status="pending",
 
@@ -377,33 +392,33 @@ def show_register():
     except Exception:
 
         st.error(
-            "We could not complete the school "
-            "registration. Please try again."
+            "School registration failed. "
+            "Please try again."
         )
 
         return
 
     # ========================================================
-    # CONFIRM DATABASE INSERT
+    # CONFIRM
     # ========================================================
 
     if not result:
 
         st.error(
-            "The school could not be registered."
+            "The school was not registered."
         )
 
         return
 
     # ========================================================
-    # STORE REGISTRATION RESULT
+    # SAVE SESSION DATA
     # ========================================================
 
     school = result[0]
 
-    st.session_state["registration_data"] = school
-
     st.session_state["school_id"] = school["id"]
+
+    st.session_state["registration_data"] = school
 
     # ========================================================
     # SUCCESS
@@ -414,7 +429,6 @@ def show_register():
     )
 
     st.info(
-        "Your school is currently awaiting verification. "
-        "You will be able to continue once the school "
-        "has been approved."
+        "Your school is awaiting verification. "
+        "You can continue once the school has been approved."
     )
