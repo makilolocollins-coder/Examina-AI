@@ -7,11 +7,10 @@ from database.supabase_client import get_supabase_client
 
 
 # ============================================================
-# GET SUPABASE
+# GET DATABASE CLIENT
 # ============================================================
 
 def get_db():
-
     return get_supabase_client()
 
 
@@ -60,7 +59,7 @@ def get_states():
 
 
 # ============================================================
-# GET LGAS BY STATE
+# GET LGAS
 # ============================================================
 
 def get_lgas(state_id):
@@ -70,10 +69,81 @@ def get_lgas(state_id):
     response = (
         supabase
         .table("local_governments")
-        .select("id,name,code,state_id")
-        .eq("state_id", state_id)
+        .select(
+            "id,name,code,state_id"
+        )
+        .eq(
+            "state_id",
+            state_id
+        )
         .order("name")
         .execute()
     )
 
     return response.data or []
+
+
+# ============================================================
+# REGISTER SCHOOL
+# ============================================================
+
+def create_school(
+    name,
+    short_name,
+    school_type,
+    state_id,
+    lga_id,
+    address,
+    phone,
+    email,
+):
+
+    supabase = get_db()
+
+    school_data = {
+        "name": name,
+        "short_name": short_name,
+        "school_type": school_type,
+        "state_id": state_id,
+        "lga_id": lga_id,
+        "address": address,
+        "phone": phone,
+        "email": email,
+    }
+
+    response = (
+        supabase
+        .table("schools")
+        .insert(school_data)
+        .execute()
+    )
+
+    return response.data
+
+
+# ============================================================
+# GET SCHOOL
+# ============================================================
+
+def get_school(school_id):
+
+    supabase = get_db()
+
+    response = (
+        supabase
+        .table("schools")
+        .select("*")
+        .eq(
+            "id",
+            school_id
+        )
+        .limit(1)
+        .execute()
+    )
+
+    data = response.data or []
+
+    if not data:
+        return None
+
+    return data[0]
