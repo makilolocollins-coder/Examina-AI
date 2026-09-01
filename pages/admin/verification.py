@@ -277,10 +277,12 @@ def show_verification():
 
                     try:
 
-                        update_school_status(
-                            school_id,
-                            "verified"
+                          update_school_status(
+                              school_id,
+                              "approved"
                         )
+
+                    
 
                         st.success(
                             "School approved successfully."
