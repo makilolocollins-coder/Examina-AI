@@ -38,7 +38,13 @@ def get_pending_schools():
     response = (
         supabase
         .table("schools")
-        .select("*")
+        .select(
+            "id,name,registration_number,"
+            "local_government,state,address,phone,"
+            "email,motto,logo_url,"
+            "ministry_certificate_url,"
+            "verification_status,is_active,created_at"
+        )
         .eq("verification_status", "pending")
         .order("created_at", desc=False)
         .execute()
