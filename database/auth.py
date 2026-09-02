@@ -149,7 +149,6 @@ def get_school_account_eligibility(
 
     return data[0]
 
-
 # ============================================================
 # SCHOOL ACCOUNT CREATION
 # ============================================================
@@ -157,8 +156,7 @@ def get_school_account_eligibility(
 def create_school_account(
     email,
     password,
-    school_id,
-    full_name
+    school_id
 ):
 
     supabase = get_supabase_client()
@@ -170,7 +168,6 @@ def create_school_account(
             "data": {
                 "account_type": "school",
                 "school_id": school_id,
-                "full_name": full_name.strip(),
             }
         }
     })
