@@ -9,7 +9,7 @@ from pages.register import show_register
 from pages.admin.login import show_admin_login
 from pages.admin.dashboard import show_admin_dashboard
 from pages.admin.verification import show_verification
-
+from pages.school_login import show_school_portal
 
 # ============================================================
 # PAGE CONFIGURATION
